@@ -19,6 +19,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
 
   const addUser = () => {
     if (!newUserName || !newUserPin) return alert("নাম এবং পিন অবশ্যই দিতে হবে");
+    const exists = users.find(u => u.name.toLowerCase() === newUserName.trim().toLowerCase());
+    if (exists) return alert("এই নামে অলরেডি ইউজার আছে!");
+    
     setUsers([...users, { name: newUserName.trim(), phone: newUserPhone.trim(), pin: newUserPin.trim(), role: 'user' }]);
     setNewUserName(''); setNewUserPhone(''); setNewUserPin('');
   };
@@ -26,6 +29,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
   const deleteUser = (name: string) => {
     if (window.confirm(`${name}-কে কি সত্যিই ডিলিট করতে চান?`)) {
       setUsers(users.filter(u => u.name !== name));
+    }
+  };
+
+  const clearLocalCache = () => {
+    if (window.confirm("আপনি কি নিশ্চিত? এটি আপনার ফোনের লোকাল ডাটা মুছে ফেলবে এবং অ্যাপটি রিলোড হবে। (ক্লাউড ডাটা নিরাপদ থাকবে)")) {
+      localStorage.clear();
+      window.location.reload();
     }
   };
 
@@ -48,18 +58,27 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
                 Supabase Cloud Storage
               </h4>
-              <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-bold">স্থায়ী কানেকশন</span>
+              <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-bold">অ্যাক্টিভ</span>
             </div>
             <p className="text-[10px] opacity-90 mb-4 leading-relaxed">
-              আপনার অ্যাপ্লিকেশনটি সফলভাবে Supabase ক্লাউড ডাটাবেসের সাথে যুক্ত আছে। এখন আর আলাদা করে বিন আইডি বা মাস্টার কি প্রয়োজন নেই।
+              আপনার সব ডাটা ক্লাউডে সুরক্ষিত আছে। ফোনের ডাটা মুছে গেলেও সমস্যা নেই।
             </p>
-            <button 
-              onClick={onRefresh}
-              disabled={isSyncing}
-              className={`w-full py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 bg-white text-green-700`}
-            >
-              {isSyncing ? 'সিঙ্ক হচ্ছে...' : 'এখনই ডাটা সিঙ্ক করুন'}
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={onRefresh}
+                disabled={isSyncing}
+                className="flex-1 py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 bg-white text-green-700"
+              >
+                {isSyncing ? 'সিঙ্ক হচ্ছে...' : 'ক্লাউড থেকে রিফ্রেশ'}
+              </button>
+              <button 
+                onClick={clearLocalCache}
+                className="py-3 px-4 rounded-xl font-bold text-xs bg-red-500 text-white shadow-md active:scale-95 transition-all"
+                title="লোকাল ক্যাশ মুছুন"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
           </section>
 
           <section className="space-y-4">
@@ -72,7 +91,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
             <button onClick={addUser} className="w-full bg-bkash-pink text-white py-3 rounded-xl font-bold active:scale-95 transition-all shadow-lg shadow-pink-100">ইউজার তৈরি করুন</button>
           </section>
 
-          <section className="space-y-3">
+          <section className="space-y-3 pb-6">
             <h4 className="font-bold text-xs text-gray-500 uppercase tracking-wider">ইউজার লিস্ট ({users.length})</h4>
             <div className="space-y-2">
               {users.map(u => (
