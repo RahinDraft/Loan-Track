@@ -1,0 +1,18 @@
+
+{
+  "name": "bKash Loan Tracker Pro",
+  "short_name": "LoanTracker",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#D12053",
+  "theme_color": "#D12053",
+  "description": "Professional loan and installment management app.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2845/2845811.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

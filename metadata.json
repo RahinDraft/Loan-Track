@@ -1,0 +1,5 @@
+{
+  "name": "bKash Loan Tracker",
+  "description": "A modern fintech-inspired loan management application for tracking bKash loans and installments between friends with LocalStorage persistence.",
+  "requestFramePermissions": []
+}
