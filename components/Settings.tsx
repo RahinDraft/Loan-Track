@@ -21,6 +21,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<'none' | 'success' | 'error'>('none');
 
+  const isEnvManaged = (process.env as any).JSONBIN_API_KEY && (process.env as any).JSONBIN_BIN_ID;
+
   const saveCloud = async () => {
     if (!cloudKeyInput || !cloudBinInput) return alert("API Key এবং Bin ID দিন");
     
@@ -28,7 +30,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
     setVerifyStatus('none');
     
     try {
-      // JSONBin.io-র সাথে কানেকশন টেস্ট করা হচ্ছে
       const response = await fetch(`https://api.jsonbin.io/v3/b/${cloudBinInput}/latest`, {
         headers: { 'X-Master-Key': cloudKeyInput }
       });
@@ -67,7 +68,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md font-['Hind_Siliguri']">
       <div className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         <div className="bg-gray-900 p-6 text-white flex justify-between items-center shrink-0">
           <div>
@@ -78,18 +79,20 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
-          {/* Cloud Section with Verification UI */}
-          <section className={`p-5 rounded-2xl text-white shadow-xl transition-all duration-500 ${verifyStatus === 'success' ? 'bg-green-600' : verifyStatus === 'error' ? 'bg-red-600' : 'bg-indigo-600'}`}>
+          {/* Cloud Section */}
+          <section className={`p-5 rounded-2xl text-white shadow-xl transition-all duration-500 ${verifyStatus === 'success' || (isEnvManaged && !cloudConfig) ? 'bg-green-600' : verifyStatus === 'error' ? 'bg-red-600' : 'bg-indigo-600'}`}>
             <div className="flex justify-between items-start mb-1">
               <h4 className="font-bold text-xs uppercase flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
-                Cloud Sync (JSONBin.io)
+                Cloud Sync {isEnvManaged ? '(Environment Managed)' : '(JSONBin.io)'}
               </h4>
               {cloudConfig?.lastSync && (
                 <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-bold">সিঙ্ক: {cloudConfig.lastSync}</span>
               )}
             </div>
-            <p className="text-[10px] opacity-80 mb-4 leading-relaxed">আপনার মাস্টার কি এবং বিন আইডি দিয়ে কানেক্ট করুন।</p>
+            <p className="text-[10px] opacity-80 mb-4 leading-relaxed">
+              {isEnvManaged ? 'Vercel Environment Variables ব্যবহার করা হচ্ছে। আপনি চাইলে এখান থেকে সাময়িকভাবে ওভাররাইড করতে পারেন।' : 'আপনার মাস্টার কী এবং বিন আইডি দিয়ে কানেক্ট করুন।'}
+            </p>
             <div className="space-y-2">
               <input 
                 type="password" 
@@ -118,7 +121,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
                     </svg>
                     যাচাই করা হচ্ছে...
                   </>
-                ) : verifyStatus === 'success' ? 'কানেক্টেড (আবার সিঙ্ক করুন)' : 'ক্লাউড কানেক্ট করুন'}
+                ) : verifyStatus === 'success' ? 'সফলভাবে কানেক্টেড' : 'ম্যানুয়ালি কানেক্ট করুন'}
               </button>
             </div>
           </section>

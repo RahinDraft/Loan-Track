@@ -10,6 +10,12 @@ const STORAGE_KEY = 'bkash_loan_tracker_master_loans';
 const USERS_KEY = 'bkash_loan_tracker_master_users';
 const CLOUD_KEY = 'bkash_loan_tracker_cloud_config';
 
+// Priority: Use Environment Variables for permanent setup if available
+const ENV_CONFIG: Partial<CloudConfig> = {
+  apiKey: (process.env as any).JSONBIN_API_KEY || '',
+  binId: (process.env as any).JSONBIN_BIN_ID || ''
+};
+
 const App: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
@@ -25,54 +31,8 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | 'none'>('none');
 
-  useEffect(() => {
-    const savedLoans = localStorage.getItem(STORAGE_KEY);
-    const savedUsers = localStorage.getItem(USERS_KEY);
-    const savedCloud = localStorage.getItem(CLOUD_KEY);
-
-    let hasUsers = false;
-    if (savedUsers) {
-      const parsedUsers = JSON.parse(savedUsers);
-      setUsers(parsedUsers);
-      hasUsers = parsedUsers.length > 0;
-    }
-    
-    if (savedLoans) setLoans(JSON.parse(savedLoans));
-    if (savedCloud) setCloudConfig(JSON.parse(savedCloud));
-    
-    setIsFirstRun(!hasUsers);
-    setIsLoaded(true);
-  }, []);
-
-  const syncToCloud = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
-    if (!cloudConfig?.apiKey || !cloudConfig?.binId || currentUser?.role !== 'admin') return;
-    setIsSyncing(true);
-    try {
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${cloudConfig.binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': cloudConfig.apiKey
-        },
-        body: JSON.stringify({ loans: currentLoans, users: currentUsers })
-      });
-      if (response.ok) {
-        setLastSyncStatus('success');
-        const updatedConfig = { ...cloudConfig, lastSync: new Date().toLocaleTimeString('bn-BD') };
-        setCloudConfig(updatedConfig);
-        localStorage.setItem(CLOUD_KEY, JSON.stringify(updatedConfig));
-      } else {
-        setLastSyncStatus('error');
-      }
-    } catch (error) {
-      setLastSyncStatus('error');
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [cloudConfig, currentUser]);
-
   const pullFromCloud = useCallback(async (manualConfig?: {apiKey: string, binId: string}) => {
-    const config = manualConfig || cloudConfig;
+    const config = manualConfig || cloudConfig || (ENV_CONFIG.apiKey ? (ENV_CONFIG as CloudConfig) : null);
     if (!config?.apiKey || !config?.binId) return false;
     
     setIsSyncing(true);
@@ -88,12 +48,20 @@ const App: React.FC = () => {
         setLoans(fetchedLoans);
         setUsers(fetchedUsers);
         setLastSyncStatus('success');
-        const newCloudConfig = { ...config, lastSync: new Date().toLocaleTimeString('bn-BD') };
+        
+        const newCloudConfig = { 
+          ...config, 
+          lastSync: new Date().toLocaleTimeString('bn-BD') 
+        };
         setCloudConfig(newCloudConfig);
+        
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fetchedLoans));
         localStorage.setItem(USERS_KEY, JSON.stringify(fetchedUsers));
         localStorage.setItem(CLOUD_KEY, JSON.stringify(newCloudConfig));
-        if (fetchedUsers.length > 0) setIsFirstRun(false);
+        
+        if (fetchedUsers.length > 0) {
+          setIsFirstRun(false);
+        }
         return true;
       }
       return false;
@@ -106,10 +74,66 @@ const App: React.FC = () => {
   }, [cloudConfig]);
 
   useEffect(() => {
-    if (isLoaded && isFirstRun && cloudConfig?.apiKey && cloudConfig?.binId) {
-      pullFromCloud();
+    const savedLoans = localStorage.getItem(STORAGE_KEY);
+    const savedUsers = localStorage.getItem(USERS_KEY);
+    const savedCloud = localStorage.getItem(CLOUD_KEY);
+
+    let currentConfig: CloudConfig | null = null;
+    if (savedCloud) {
+      currentConfig = JSON.parse(savedCloud);
+      setCloudConfig(currentConfig);
+    } else if (ENV_CONFIG.apiKey && ENV_CONFIG.binId) {
+      // Auto-bootstrap from environment variables
+      currentConfig = ENV_CONFIG as CloudConfig;
+      setCloudConfig(currentConfig);
     }
-  }, [isLoaded, isFirstRun, cloudConfig, pullFromCloud]);
+
+    if (savedLoans) setLoans(JSON.parse(savedLoans));
+    
+    if (savedUsers) {
+      const parsedUsers = JSON.parse(savedUsers);
+      setUsers(parsedUsers);
+      setIsFirstRun(parsedUsers.length === 0);
+    } else {
+      setIsFirstRun(true);
+    }
+
+    setIsLoaded(true);
+
+    // Initial sync check if we have config but no local data
+    if (currentConfig && (!savedUsers || JSON.parse(savedUsers).length === 0)) {
+      pullFromCloud(currentConfig);
+    }
+  }, [pullFromCloud]);
+
+  const syncToCloud = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
+    const config = cloudConfig || (ENV_CONFIG.apiKey ? (ENV_CONFIG as CloudConfig) : null);
+    if (!config?.apiKey || !config?.binId || currentUser?.role !== 'admin') return;
+    
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${config.binId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': config.apiKey
+        },
+        body: JSON.stringify({ loans: currentLoans, users: currentUsers })
+      });
+      if (response.ok) {
+        setLastSyncStatus('success');
+        const updatedConfig = { ...config, lastSync: new Date().toLocaleTimeString('bn-BD') };
+        setCloudConfig(updatedConfig);
+        localStorage.setItem(CLOUD_KEY, JSON.stringify(updatedConfig));
+      } else {
+        setLastSyncStatus('error');
+      }
+    } catch (error) {
+      setLastSyncStatus('error');
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [cloudConfig, currentUser]);
 
   const handleDataChange = (newLoans: Loan[], newUsers: UserAccount[]) => {
     setLoans(newLoans);
@@ -152,51 +176,55 @@ const App: React.FC = () => {
   }, [loans, filterUser, currentUser]);
 
   if (!isLoaded) return (
-    <div className="min-h-screen bg-bkash-pink flex items-center justify-center">
+    <div className="min-h-screen bg-bkash-pink flex items-center justify-center font-['Hind_Siliguri']">
       <div className="animate-pulse text-white font-bold">লোড হচ্ছে...</div>
     </div>
   );
 
   if (!isAuthenticated) {
     return (
-      <Auth 
-        users={users} 
-        isFirstRun={isFirstRun}
-        onRestore={pullFromCloud}
-        onSetupAdmin={(admin) => {
-          setUsers([admin]);
-          setCurrentUser(admin);
-          setIsAuthenticated(true);
-          setIsFirstRun(false);
-          handleDataChange([], [admin]);
-        }}
-        onSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-        }} 
-        onReset={() => {
-           if(window.confirm("সব ডেটা রিসেট হবে! নিশ্চিত?")) {
-             localStorage.clear();
-             window.location.reload();
-           }
-        }}
-      />
+      <div className="font-['Hind_Siliguri']">
+        <Auth 
+          users={users} 
+          isFirstRun={isFirstRun}
+          onRestore={pullFromCloud}
+          onSetupAdmin={(admin) => {
+            setUsers([admin]);
+            setCurrentUser(admin);
+            setIsAuthenticated(true);
+            setIsFirstRun(false);
+            handleDataChange([], [admin]);
+          }}
+          onSuccess={(user) => {
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+            // Refresh data on every login for user transparency
+            pullFromCloud();
+          }} 
+          onReset={() => {
+             if(window.confirm("সব ডেটা রিসেট হবে! নিশ্চিত?")) {
+               localStorage.clear();
+               window.location.reload();
+             }
+          }}
+        />
+      </div>
     );
   }
 
   const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl relative border-x border-gray-200">
+    <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl relative border-x border-gray-200 font-['Hind_Siliguri']">
       <header className="bg-bkash-pink text-white pt-10 pb-16 px-6 sticky top-0 z-40 rounded-b-[40px] shadow-lg">
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold">বিকাশ লোন প্রো</h1>
-              {cloudConfig && (
+              {(cloudConfig || ENV_CONFIG.apiKey) && (
                 <div 
                   className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-white animate-pulse' : lastSyncStatus === 'success' ? 'bg-green-400' : lastSyncStatus === 'error' ? 'bg-red-400' : 'bg-gray-400'}`}
-                  title={lastSyncStatus === 'success' ? `সিঙ্ক সফল: ${cloudConfig.lastSync}` : 'সিঙ্ক এরর'}
+                  title={lastSyncStatus === 'success' ? `সিঙ্ক সফল` : 'সিঙ্ক এরর'}
                 ></div>
               )}
             </div>
