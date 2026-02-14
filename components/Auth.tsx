@@ -7,7 +7,7 @@ interface AuthProps {
   onSetupAdmin?: (admin: UserAccount) => void;
   onSuccess: (user: UserAccount) => void;
   onReset: () => void;
-  onRestore: (config: {apiKey: string, binId: string}) => Promise<boolean | undefined>;
+  onRestore: () => Promise<boolean | undefined>;
 }
 
 const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess, onReset, onRestore }) => {
@@ -17,11 +17,6 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
   const [showPin, setShowPin] = useState(false);
   const [setupMode, setSetupMode] = useState(isFirstRun);
   const [adminName, setAdminName] = useState('Admin');
-  
-  // Restore State
-  const [showRestore, setShowRestore] = useState(false);
-  const [resKey, setResKey] = useState('');
-  const [resBin, setResBin] = useState('');
   const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
@@ -65,7 +60,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
     const foundUser = users.find(u => u.name.toLowerCase() === userName.trim().toLowerCase());
     
     if (!foundUser) {
-      setError('ইউজার পাওয়া যায়নি! রিস্টোর করুন?');
+      setError('ইউজার পাওয়া যায়নি!');
       setPin('');
       return;
     }
@@ -79,21 +74,16 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
   };
 
   const handleCloudRestore = async () => {
-    if (!resKey || !resBin) return alert("মাস্টার কি এবং বিন আইডি দিন");
     setIsRestoring(true);
     try {
-      const success = await onRestore({ apiKey: resKey, binId: resBin });
+      const success = await onRestore();
       if (success) {
-        alert("সব তথ্য সফলভাবে রিস্টোর হয়েছে! এখন লগইন করুন।");
-        setShowRestore(false);
-        setSetupMode(false);
-        setPin('');
-        setError('');
+        setError('সিঙ্ক সফল হয়েছে!');
       } else {
-        alert("তথ্য পাওয়া যায়নি। কি বা আইডি চেক করুন।");
+        setError('ডাটাবেসে কোনো তথ্য পাওয়া যায়নি।');
       }
     } catch (e) {
-      alert("সমস্যা হয়েছে। ইন্টারনেট চেক করুন।");
+      setError('কানেকশন সমস্যা।');
     } finally {
       setIsRestoring(false);
     }
@@ -106,54 +96,8 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
     }
   }, [pin]);
 
-  // Restore UI Modal
-  if (showRestore) {
-    return (
-      <div className="fixed inset-0 z-[120] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white">
-        <div className="w-full max-w-xs space-y-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">ক্লাউড থেকে রিস্টোর</h2>
-            <p className="text-gray-400 text-xs">আপনার JSONBin তথ্য দিয়ে সব লোন ফেরত আনুন</p>
-          </div>
-          <div className="space-y-3">
-            <input 
-              type="password" 
-              placeholder="Master Key" 
-              className="w-full bg-white/5 p-4 rounded-xl border border-white/10 outline-none text-sm focus:border-white/40 transition-all"
-              value={resKey}
-              onChange={e => setResKey(e.target.value)}
-            />
-            <input 
-              type="text" 
-              placeholder="Bin ID" 
-              className="w-full bg-white/5 p-4 rounded-xl border border-white/10 outline-none text-sm focus:border-white/40 transition-all"
-              value={resBin}
-              onChange={e => setResBin(e.target.value)}
-            />
-          </div>
-          <button 
-            disabled={isRestoring}
-            onClick={handleCloudRestore}
-            className="w-full bg-white text-bkash-pink py-4 rounded-xl font-black active:scale-95 transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isRestoring ? (
-              <>
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                তথ্য আনা হচ্ছে...
-              </>
-            ) : 'ডেটা রিস্টোর করুন'}
-          </button>
-          <button onClick={() => setShowRestore(false)} className="w-full text-gray-400 text-xs font-bold py-2 uppercase tracking-widest">ফিরে যান</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-[100] bg-bkash-pink flex flex-col items-center justify-center p-6 text-white overflow-y-auto">
+    <div className="fixed inset-0 z-[100] bg-bkash-pink flex flex-col items-center justify-center p-6 text-white overflow-y-auto font-['Hind_Siliguri']">
       <div className="mb-8 text-center max-w-xs">
         <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
           <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +160,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
         </div>
       </div>
 
-      {error && <p className="mb-6 text-sm bg-black/30 px-4 py-2 rounded-xl text-center font-bold animate-bounce">{error}</p>}
+      {error && <p className="mb-6 text-sm bg-black/30 px-4 py-2 rounded-xl text-center font-bold animate-pulse">{error}</p>}
 
       <div className="grid grid-cols-3 gap-6 w-full max-w-xs mb-8">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'delete', 0, 'ok'].map(btn => {
@@ -234,11 +178,11 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, onSetupAdmin, onSuccess,
 
       <div className="flex flex-col gap-4 w-full max-w-[240px]">
         <button 
-          onClick={() => setShowRestore(true)}
+          onClick={handleCloudRestore}
+          disabled={isRestoring}
           className="w-full bg-white/10 border border-white/30 py-3 rounded-xl font-black text-[10px] uppercase tracking-[2px] hover:bg-white/20 transition-all flex items-center justify-center gap-2"
         >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
-          Cloud Restore
+          {isRestoring ? 'সিঙ্ক হচ্ছে...' : 'Cloud Refresh'}
         </button>
         
         {users.length > 0 && setupMode && (

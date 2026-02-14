@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserAccount, Loan, CloudConfig } from '../types';
+import { UserAccount, Loan } from '../types';
 
 interface SettingsProps {
   onClose: () => void;
@@ -8,52 +8,14 @@ interface SettingsProps {
   setUsers: (users: UserAccount[]) => void;
   loans: Loan[];
   setLoans: (loans: Loan[]) => void;
-  cloudConfig: CloudConfig | null;
-  setCloudConfig: (cfg: CloudConfig | null) => void;
+  onRefresh: () => void;
+  isSyncing: boolean;
 }
 
-const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUsers, cloudConfig, setCloudConfig }) => {
+const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUsers, onRefresh, isSyncing }) => {
   const [newUserName, setNewUserName] = useState('');
   const [newUserPhone, setNewUserPhone] = useState('');
   const [newUserPin, setNewUserPin] = useState('');
-  const [cloudKeyInput, setCloudKeyInput] = useState(cloudConfig?.apiKey || '');
-  const [cloudBinInput, setCloudBinInput] = useState(cloudConfig?.binId || '');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verifyStatus, setVerifyStatus] = useState<'none' | 'success' | 'error'>('none');
-
-  const isEnvManaged = (process.env as any).JSONBIN_API_KEY && (process.env as any).JSONBIN_BIN_ID;
-
-  const saveCloud = async () => {
-    if (!cloudKeyInput || !cloudBinInput) return alert("API Key এবং Bin ID দিন");
-    
-    setIsVerifying(true);
-    setVerifyStatus('none');
-    
-    try {
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${cloudBinInput}/latest`, {
-        headers: { 'X-Master-Key': cloudKeyInput }
-      });
-      
-      if (response.ok) {
-        setCloudConfig({ 
-          apiKey: cloudKeyInput, 
-          binId: cloudBinInput, 
-          lastSync: new Date().toLocaleTimeString('bn-BD') 
-        });
-        setVerifyStatus('success');
-        alert("অভিনন্দন! ক্লাউড কানেক্ট হয়েছে এবং তথ্য ভেরিফাই করা হয়েছে।");
-      } else {
-        const errorData = await response.json();
-        setVerifyStatus('error');
-        alert(`ভুল হয়েছে! JSONBin থেকে মেসেজ: ${errorData.message || 'Key বা ID চেক করুন'}`);
-      }
-    } catch (error) {
-      setVerifyStatus('error');
-      alert("ইন্টারনেট কানেকশন চেক করুন। ক্লাউডে যুক্ত হতে সমস্যা হচ্ছে।");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   const addUser = () => {
     if (!newUserName || !newUserPin) return alert("নাম এবং পিন অবশ্যই দিতে হবে");
@@ -79,51 +41,25 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
-          {/* Cloud Section */}
-          <section className={`p-5 rounded-2xl text-white shadow-xl transition-all duration-500 ${verifyStatus === 'success' || (isEnvManaged && !cloudConfig) ? 'bg-green-600' : verifyStatus === 'error' ? 'bg-red-600' : 'bg-indigo-600'}`}>
+          {/* Supabase Status Section */}
+          <section className="p-5 rounded-2xl text-white shadow-xl bg-green-600">
             <div className="flex justify-between items-start mb-1">
               <h4 className="font-bold text-xs uppercase flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"/></svg>
-                Cloud Sync {isEnvManaged ? '(Environment Managed)' : '(JSONBin.io)'}
+                Supabase Cloud Storage
               </h4>
-              {cloudConfig?.lastSync && (
-                <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-bold">সিঙ্ক: {cloudConfig.lastSync}</span>
-              )}
+              <span className="text-[9px] bg-black/20 px-2 py-0.5 rounded-full font-bold">স্থায়ী কানেকশন</span>
             </div>
-            <p className="text-[10px] opacity-80 mb-4 leading-relaxed">
-              {isEnvManaged ? 'Vercel Environment Variables ব্যবহার করা হচ্ছে। আপনি চাইলে এখান থেকে সাময়িকভাবে ওভাররাইড করতে পারেন। ' : 'আপনার মাস্টার কী এবং বিন আইডি দিয়ে কানেক্ট করুন।'}
+            <p className="text-[10px] opacity-90 mb-4 leading-relaxed">
+              আপনার অ্যাপ্লিকেশনটি সফলভাবে Supabase ক্লাউড ডাটাবেসের সাথে যুক্ত আছে। এখন আর আলাদা করে বিন আইডি বা মাস্টার কি প্রয়োজন নেই।
             </p>
-            <div className="space-y-2">
-              <input 
-                type="password" 
-                placeholder="JSONBin Master Key" 
-                className="w-full bg-white/10 p-3 rounded-xl outline-none border border-white/20 text-xs placeholder:text-white/40" 
-                value={cloudKeyInput} 
-                onChange={e => {setCloudKeyInput(e.target.value); setVerifyStatus('none');}} 
-              />
-              <input 
-                type="text" 
-                placeholder="Bin ID" 
-                className="w-full bg-white/10 p-3 rounded-xl outline-none border border-white/20 text-xs placeholder:text-white/40" 
-                value={cloudBinInput} 
-                onChange={e => {setCloudBinInput(e.target.value); setVerifyStatus('none');}} 
-              />
-              <button 
-                disabled={isVerifying}
-                onClick={saveCloud} 
-                className={`w-full py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 ${isVerifying ? 'bg-white/20 cursor-not-allowed' : 'bg-white text-indigo-600'}`}
-              >
-                {isVerifying ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    যাচাই করা হচ্ছে...
-                  </>
-                ) : verifyStatus === 'success' ? 'সফলভাবে কানেক্টেড' : 'ম্যানুয়ালি কানেক্ট করুন'}
-              </button>
-            </div>
+            <button 
+              onClick={onRefresh}
+              disabled={isSyncing}
+              className={`w-full py-3 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 bg-white text-green-700`}
+            >
+              {isSyncing ? 'সিঙ্ক হচ্ছে...' : 'এখনই ডাটা সিঙ্ক করুন'}
+            </button>
           </section>
 
           <section className="space-y-4">

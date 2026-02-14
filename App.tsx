@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Loan, LoanStatus, UserAccount, CloudConfig } from './types';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Loan, LoanStatus, UserAccount } from './types';
 import Dashboard from './components/Dashboard';
 import LoanForm from './components/LoanForm';
 import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
+// Supabase Configuration
+const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
+const SUPABASE_KEY = (process.env as any).SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Y3VxYmpjdG9lYXFtdGVzb2J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzExMTI4ODEsImV4cCI6MjA4NjY4ODg4MX0.uX_k60O3t_kK8G8L8E1-yC9W8Z5S0p1R5P0T0L0F0F0'; // Fallback to provided key
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const STORAGE_KEY = 'bkash_loan_tracker_master_loans';
 const USERS_KEY = 'bkash_loan_tracker_master_users';
-const CLOUD_KEY = 'bkash_loan_tracker_cloud_config';
-
-// Priority: Use Environment Variables for permanent setup if available
-const ENV_CONFIG: Partial<CloudConfig> = {
-  apiKey: (process.env as any).JSONBIN_API_KEY || '',
-  binId: (process.env as any).JSONBIN_BIN_ID || ''
-};
 
 const App: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-  const [cloudConfig, setCloudConfig] = useState<CloudConfig | null>(null);
   const [filterUser, setFilterUser] = useState<string>('All');
   const [showForm, setShowForm] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -29,67 +27,49 @@ const App: React.FC = () => {
   const [isFirstRun, setIsFirstRun] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | 'none'>('none');
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
-  const pullFromCloud = useCallback(async (manualConfig?: {apiKey: string, binId: string}) => {
-    const config = manualConfig || cloudConfig || (ENV_CONFIG.apiKey ? (ENV_CONFIG as CloudConfig) : null);
-    if (!config?.apiKey || !config?.binId) return false;
-    
+  const pullFromSupabase = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${config.binId}/latest`, {
-        headers: { 'X-Master-Key': config.apiKey }
-      });
-      if (!res.ok) throw new Error("Pull failed");
-      const data = await res.json();
-      if (data.record) {
-        const fetchedLoans = data.record.loans || [];
-        const fetchedUsers = data.record.users || [];
-        setLoans(fetchedLoans);
-        setUsers(fetchedUsers);
-        setLastSyncStatus('success');
-        
-        const newCloudConfig = { 
-          ...config, 
-          lastSync: new Date().toLocaleTimeString('bn-BD') 
-        };
-        setCloudConfig(newCloudConfig);
-        
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(fetchedLoans));
-        localStorage.setItem(USERS_KEY, JSON.stringify(fetchedUsers));
-        localStorage.setItem(CLOUD_KEY, JSON.stringify(newCloudConfig));
-        
-        if (fetchedUsers.length > 0) {
-          setIsFirstRun(false);
-        }
-        return true;
+      // Fetch Users
+      const { data: userData, error: userError } = await supabase.from('users').select('*');
+      if (userError) throw userError;
+
+      // Fetch Loans
+      const { data: loanData, error: loanError } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
+      if (loanError) throw loanError;
+
+      if (userData) {
+        setUsers(userData as UserAccount[]);
+        localStorage.setItem(USERS_KEY, JSON.stringify(userData));
+        setIsFirstRun(userData.length === 0);
       }
-      return false;
+
+      if (loanData) {
+        const transformedLoans = loanData.map(l => ({
+          ...l,
+          installments: typeof l.installments === 'string' ? JSON.parse(l.installments) : l.installments
+        }));
+        setLoans(transformedLoans as Loan[]);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(transformedLoans));
+      }
+      
+      setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
+      return true;
     } catch (error) {
-      setLastSyncStatus('error');
+      console.error("Supabase Pull Error:", error);
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [cloudConfig]);
+  }, []);
 
   useEffect(() => {
     const savedLoans = localStorage.getItem(STORAGE_KEY);
     const savedUsers = localStorage.getItem(USERS_KEY);
-    const savedCloud = localStorage.getItem(CLOUD_KEY);
-
-    let currentConfig: CloudConfig | null = null;
-    if (savedCloud) {
-      currentConfig = JSON.parse(savedCloud);
-      setCloudConfig(currentConfig);
-    } else if (ENV_CONFIG.apiKey && ENV_CONFIG.binId) {
-      // Auto-bootstrap from environment variables
-      currentConfig = ENV_CONFIG as CloudConfig;
-      setCloudConfig(currentConfig);
-    }
 
     if (savedLoans) setLoans(JSON.parse(savedLoans));
-    
     if (savedUsers) {
       const parsedUsers = JSON.parse(savedUsers);
       setUsers(parsedUsers);
@@ -99,48 +79,43 @@ const App: React.FC = () => {
     }
 
     setIsLoaded(true);
-
-    // Initial sync check if we have config but no local data
-    if (currentConfig && (!savedUsers || JSON.parse(savedUsers).length === 0)) {
-      pullFromCloud(currentConfig);
-    }
-  }, [pullFromCloud]);
-
-  const syncToCloud = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
-    const config = cloudConfig || (ENV_CONFIG.apiKey ? (ENV_CONFIG as CloudConfig) : null);
-    if (!config?.apiKey || !config?.binId || currentUser?.role !== 'admin') return;
     
+    // Always try to get fresh data from Supabase on load
+    pullFromSupabase();
+  }, [pullFromSupabase]);
+
+  const syncToSupabase = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
+    if (currentUser?.role !== 'admin') return;
     setIsSyncing(true);
     try {
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${config.binId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': config.apiKey
-        },
-        body: JSON.stringify({ loans: currentLoans, users: currentUsers })
-      });
-      if (response.ok) {
-        setLastSyncStatus('success');
-        const updatedConfig = { ...config, lastSync: new Date().toLocaleTimeString('bn-BD') };
-        setCloudConfig(updatedConfig);
-        localStorage.setItem(CLOUD_KEY, JSON.stringify(updatedConfig));
-      } else {
-        setLastSyncStatus('error');
-      }
+      // Upsert Users
+      const { error: userError } = await supabase.from('users').upsert(currentUsers, { onConflict: 'name' });
+      if (userError) throw userError;
+
+      // Upsert Loans
+      // Note: We transform installments to JSON string for safety if needed, 
+      // but Supabase JSONB handles objects directly.
+      const { error: loanError } = await supabase.from('loans').upsert(currentLoans.map(l => ({
+        ...l,
+        installments: l.installments // Supabase handles JSONB
+      })), { onConflict: 'id' });
+      
+      if (loanError) throw loanError;
+
+      setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
     } catch (error) {
-      setLastSyncStatus('error');
+      console.error("Supabase Sync Error:", error);
     } finally {
       setIsSyncing(false);
     }
-  }, [cloudConfig, currentUser]);
+  }, [currentUser]);
 
   const handleDataChange = (newLoans: Loan[], newUsers: UserAccount[]) => {
     setLoans(newLoans);
     setUsers(newUsers);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newLoans));
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
-    if (currentUser?.role === 'admin') syncToCloud(newLoans, newUsers);
+    if (currentUser?.role === 'admin') syncToSupabase(newLoans, newUsers);
   };
 
   const addLoan = (newLoan: Loan) => {
@@ -153,9 +128,14 @@ const App: React.FC = () => {
     setEditingLoan(null);
   };
 
-  const deleteLoan = (id: string) => {
+  const deleteLoan = async (id: string) => {
     if (window.confirm('ডিলিট করতে চান?')) {
-      handleDataChange(loans.filter(l => l.id !== id), users);
+      const updatedLoans = loans.filter(l => l.id !== id);
+      setLoans(updatedLoans);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLoans));
+      if (currentUser?.role === 'admin') {
+        await supabase.from('loans').delete().eq('id', id);
+      }
     }
   };
 
@@ -183,32 +163,29 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="font-['Hind_Siliguri']">
-        <Auth 
-          users={users} 
-          isFirstRun={isFirstRun}
-          onRestore={pullFromCloud}
-          onSetupAdmin={(admin) => {
-            setUsers([admin]);
-            setCurrentUser(admin);
-            setIsAuthenticated(true);
-            setIsFirstRun(false);
-            handleDataChange([], [admin]);
-          }}
-          onSuccess={(user) => {
-            setCurrentUser(user);
-            setIsAuthenticated(true);
-            // Refresh data on every login for user transparency
-            pullFromCloud();
-          }} 
-          onReset={() => {
-             if(window.confirm("সব ডেটা রিসেট হবে! নিশ্চিত?")) {
-               localStorage.clear();
-               window.location.reload();
-             }
-          }}
-        />
-      </div>
+      <Auth 
+        users={users} 
+        isFirstRun={isFirstRun}
+        onRestore={pullFromSupabase}
+        onSetupAdmin={(admin) => {
+          setUsers([admin]);
+          setCurrentUser(admin);
+          setIsAuthenticated(true);
+          setIsFirstRun(false);
+          handleDataChange([], [admin]);
+        }}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          pullFromSupabase();
+        }} 
+        onReset={() => {
+           if(window.confirm("সব ডেটা রিসেট হবে! নিশ্চিত?")) {
+             localStorage.clear();
+             window.location.reload();
+           }
+        }}
+      />
     );
   }
 
@@ -221,23 +198,21 @@ const App: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold">বিকাশ লোন প্রো</h1>
-              {(cloudConfig || ENV_CONFIG.apiKey) && (
-                <div 
-                  className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-white animate-pulse' : lastSyncStatus === 'success' ? 'bg-green-400' : lastSyncStatus === 'error' ? 'bg-red-400' : 'bg-gray-400'}`}
-                  title={lastSyncStatus === 'success' ? `সিঙ্ক সফল` : 'সিঙ্ক এরর'}
-                ></div>
-              )}
+              <div 
+                className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-white animate-pulse' : 'bg-green-400'}`}
+                title="Supabase Connected"
+              ></div>
             </div>
             <p className="text-pink-100 text-[10px] font-bold uppercase tracking-wider">
               {isAdmin ? 'অ্যাডমিন' : 'ইউজার'}: {currentUser?.name}
-              {cloudConfig?.lastSync && lastSyncStatus === 'success' && ` • সিঙ্ক: ${cloudConfig.lastSync}`}
+              {lastSyncTime && ` • সিঙ্ক: ${lastSyncTime}`}
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => pullFromCloud()} className={`p-2 bg-white/10 rounded-full transition-all ${isSyncing ? 'rotate-180 opacity-50' : 'active:scale-90'}`} title="রিলোড করুন">
+            <button onClick={() => pullFromSupabase()} className={`p-2 bg-white/10 rounded-full transition-all ${isSyncing ? 'rotate-180 opacity-50' : 'active:scale-90'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </button>
-            <button onClick={() => { setIsAuthenticated(false); setFilterUser('All'); }} className="p-2 bg-white/10 rounded-full active:scale-90" title="লগআউট">
+            <button onClick={() => setIsAuthenticated(false)} className="p-2 bg-white/10 rounded-full active:scale-90">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
             </button>
           </div>
@@ -303,8 +278,8 @@ const App: React.FC = () => {
           setUsers={(u) => handleDataChange(loans, u)} 
           loans={loans} 
           setLoans={(l) => handleDataChange(l, users)} 
-          cloudConfig={cloudConfig} 
-          setCloudConfig={(cfg) => { setCloudConfig(cfg); localStorage.setItem(CLOUD_KEY, JSON.stringify(cfg)); }} 
+          onRefresh={pullFromSupabase}
+          isSyncing={isSyncing}
         />
       )}
     </div>
