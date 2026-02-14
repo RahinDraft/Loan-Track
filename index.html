@@ -22,19 +22,19 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .safe-area-inset { padding-bottom: env(safe-area-inset-bottom); }
         
-        /* Focus Highlight Animation */
+        /* High Contrast Focus Highlight */
         @keyframes highlightPulse {
-            0% { background-color: #fffbeb; transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
-            50% { background-color: #fef3c7; transform: scale(1.02); box-shadow: 0 0 20px 10px rgba(251, 191, 36, 0.2); }
-            100% { background-color: #fffbeb; transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+            0% { background-color: #fffbeb; transform: scale(1); box-shadow: 0 0 0 0 rgba(209, 32, 83, 0); }
+            50% { background-color: #fef3c7; transform: scale(1.03); box-shadow: 0 0 30px 5px rgba(251, 191, 36, 0.5); border-color: #D12053; }
+            100% { background-color: #fffbeb; transform: scale(1); box-shadow: 0 0 0 0 rgba(209, 32, 83, 0); }
         }
         .inst-highlight {
-            animation: highlightPulse 1.5s ease-in-out infinite;
-            border: 2px solid #fbbf24 !important;
+            animation: highlightPulse 1s ease-in-out infinite;
+            border: 3px solid #D12053 !important;
+            position: relative;
             z-index: 50;
         }
 
-        /* Smooth transitions for all interactions */
         * { transition: background-color 0.2s ease, transform 0.1s ease; }
     </style>
 <script type="importmap">
@@ -54,7 +54,18 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
-                    .then(reg => console.log('SW Registered'))
+                    .then(reg => {
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    if(confirm('নতুন আপডেট পাওয়া গেছে! অ্যাপটি রিলোড করতে চান?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            };
+                        };
+                    })
                     .catch(err => console.warn('SW Failed', err.message));
             });
         }

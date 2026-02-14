@@ -1,5 +1,4 @@
-
-const CACHE_NAME = 'bkash-loan-v1';
+const CACHE_NAME = 'bkash-loan-v2'; // Updated version
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +8,19 @@ const ASSETS = [
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
+  self.skipWaiting(); // Force activation
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      );
+    })
   );
 });
 

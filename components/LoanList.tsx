@@ -28,19 +28,25 @@ const LoanList: React.FC<LoanListProps> = ({
 }) => {
   const [notifyingInstallment, setNotifyingInstallment] = useState<{ loan: Loan, inst: Installment, type: 'success' | 'congrats' } | null>(null);
   
-  // Handle auto-scrolling and focusing when an installment is triggered
+  // Robust scroll logic with retries
   useEffect(() => {
     if (highlightedInstallmentId) {
-      // Small delay to ensure the card is expanded and the "All" filter is applied in DOM
-      const timer = setTimeout(() => {
+      let retries = 0;
+      const tryScroll = () => {
         const element = document.getElementById(`inst-${highlightedInstallmentId}`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (retries < 15) { // Try for up to 1.5 seconds
+          retries++;
+          setTimeout(tryScroll, 100);
         }
-      }, 300);
-      return () => clearTimeout(timer);
+      };
+      
+      // Initial delay to let the expansion animation start
+      const timeout = setTimeout(tryScroll, 200);
+      return () => clearTimeout(timeout);
     }
-  }, [highlightedInstallmentId, expandedLoanId, loans.length]);
+  }, [highlightedInstallmentId, expandedLoanId]);
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('bn-BD', {
