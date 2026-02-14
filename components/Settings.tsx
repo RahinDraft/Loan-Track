@@ -91,7 +91,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
               )}
             </div>
             <p className="text-[10px] opacity-80 mb-4 leading-relaxed">
-              {isEnvManaged ? 'Vercel Environment Variables ব্যবহার করা হচ্ছে। আপনি চাইলে এখান থেকে সাময়িকভাবে ওভাররাইড করতে পারেন।' : 'আপনার মাস্টার কী এবং বিন আইডি দিয়ে কানেক্ট করুন।'}
+              {isEnvManaged ? 'Vercel Environment Variables ব্যবহার করা হচ্ছে। আপনি চাইলে এখান থেকে সাময়িকভাবে ওভাররাইড করতে পারেন। ' : 'আপনার মাস্টার কী এবং বিন আইডি দিয়ে কানেক্ট করুন।'}
             </p>
             <div className="space-y-2">
               <input 
