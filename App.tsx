@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { Loan, LoanStatus, UserAccount } from './types';
 import Dashboard from './components/Dashboard';
@@ -28,25 +28,35 @@ const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
+  const [syncError, setSyncError] = useState(false);
+  
+  // States for navigation focus
+  const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
+  const [highlightedInstId, setHighlightedInstId] = useState<string | null>(null);
 
   const pullFromSupabase = useCallback(async () => {
     setIsSyncing(true);
+    setSyncError(false);
     try {
-      // 1. Fetch Users
       const { data: userData, error: userError } = await supabase.from('users').select('*');
       if (userError) throw userError;
 
-      // 2. Fetch Loans
       const { data: loanData, error: loanError } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
       if (loanError) throw loanError;
 
+      let finalUsers: UserAccount[] = [];
       if (userData && userData.length > 0) {
-        setUsers(userData as UserAccount[]);
-        localStorage.setItem(USERS_KEY, JSON.stringify(userData));
+        finalUsers = userData as UserAccount[];
         setIsFirstRun(false);
-      } else if (!users.length) {
-        setIsFirstRun(true);
+      } else {
+        const defaultAdmin: UserAccount = { name: 'Admin', phone: '', pin: '1234', role: 'admin' };
+        finalUsers = [defaultAdmin];
+        setIsFirstRun(false);
+        await supabase.from('users').upsert([defaultAdmin]);
       }
+
+      setUsers(finalUsers);
+      localStorage.setItem(USERS_KEY, JSON.stringify(finalUsers));
 
       if (loanData) {
         const transformedLoans = loanData.map(l => ({
@@ -61,31 +71,35 @@ const App: React.FC = () => {
       return true;
     } catch (error) {
       console.error("Cloud Fetch Error:", error);
+      setSyncError(true);
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [users.length]);
+  }, []);
 
   useEffect(() => {
     const init = async () => {
-      // Step 1: Try to load from local storage
       const savedLoans = localStorage.getItem(STORAGE_KEY);
       const savedUsers = localStorage.getItem(USERS_KEY);
 
       if (savedLoans) setLoans(JSON.parse(savedLoans));
       if (savedUsers) {
-        const parsedUsers = JSON.parse(savedUsers);
-        setUsers(parsedUsers);
-        setIsFirstRun(parsedUsers.length === 0);
+        setUsers(JSON.parse(savedUsers));
       } else {
-        setIsFirstRun(true);
+        setUsers([{ name: 'Admin', phone: '', pin: '1234', role: 'admin' }]);
       }
 
-      // Step 2: Sync with cloud to ensure we have the latest
+      const syncTimeout = setTimeout(() => {
+        if (!isLoaded) {
+          setIsLoaded(true);
+          setSyncError(true);
+        }
+      }, 5000);
+
       await pullFromSupabase();
       
-      // Step 3: Now show the app
+      clearTimeout(syncTimeout);
       setIsLoaded(true);
     };
 
@@ -154,6 +168,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleInstallmentFocus = (loanId: string, instId: string) => {
+    setFilterUser('All'); // Ensure the loan is in the list
+    setExpandedLoanId(loanId);
+    setHighlightedInstId(instId);
+    
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedInstId(null);
+    }, 3000);
+  };
+
   const stats = useMemo(() => {
     const vLoans = currentUser?.role === 'admin' && filterUser === 'All' 
       ? loans 
@@ -174,7 +199,15 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center font-['Hind_Siliguri'] p-6 text-center">
       <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-6"></div>
       <h2 className="text-white text-xl font-bold mb-2">সার্ভারের সাথে সিঙ্ক হচ্ছে...</h2>
-      <p className="text-pink-100 text-sm opacity-80">দয়া করে কিছুক্ষণ অপেক্ষা করুন। আপনার ডাটা সুরক্ষিতভাবে লোড করা হচ্ছে।</p>
+      <p className="text-pink-100 text-sm opacity-80 mb-6">দয়া করে কিছুক্ষণ অপেক্ষা করুন।</p>
+      {syncError && (
+        <button 
+          onClick={() => setIsLoaded(true)}
+          className="bg-white/20 px-6 py-2 rounded-full text-xs font-bold text-white border border-white/30"
+        >
+          Skip and use Local Cache
+        </button>
+      )}
     </div>
   );
 
@@ -250,7 +283,8 @@ const App: React.FC = () => {
           loans={loans} 
           users={users} 
           isAdmin={isAdmin}
-          onUserClick={(name) => isAdmin && setFilterUser(name)} 
+          onUserClick={(name) => isAdmin && setFilterUser(name)}
+          onInstallmentClick={handleInstallmentFocus}
         />
         
         <div className="mt-8">
@@ -261,13 +295,16 @@ const App: React.FC = () => {
             onEdit={(loan) => setEditingLoan(loan)} 
             onDelete={isAdmin ? deleteLoan : undefined} 
             isAdmin={isAdmin} 
-            onUserClick={(name) => isAdmin && setFilterUser(name)} 
+            onUserClick={(name) => isAdmin && setFilterUser(name)}
+            expandedLoanId={expandedLoanId}
+            onExpandChange={setExpandedLoanId}
+            highlightedInstallmentId={highlightedInstId}
           />
         </div>
       </main>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white/90 backdrop-blur-xl py-4 px-8 flex justify-between items-center z-50 shadow-2xl rounded-[30px] border border-white/20">
-        <button onClick={() => { setShowSettings(false); setFilterUser('All'); }} className="flex flex-col items-center gap-1 transition-all active:scale-90">
+        <button onClick={() => { setShowSettings(false); setFilterUser('All'); setExpandedLoanId(null); }} className="flex flex-col items-center gap-1 transition-all active:scale-90">
           <svg className={`w-6 h-6 ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span className={`text-[10px] font-bold ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`}>হোম</span>
         </button>

@@ -21,7 +21,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
   const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
-    setSetupMode(isFirstRun);
+    if (isFirstRun) setSetupMode(true);
   }, [isFirstRun]);
 
   const handleNumberClick = (num: string) => {
@@ -37,6 +37,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
 
   const handleSubmit = () => {
     setError('');
+    const cleanName = userName.trim();
     
     if (setupMode && onSetupAdmin) {
       if (pin.length !== 4) {
@@ -52,21 +53,31 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       return;
     }
 
-    if (!userName.trim()) {
-      setError('ইউজার নেম দিন');
+    if (!cleanName) {
+      setError('ইউজার নেম দিন (যেমন: Admin)');
       setPin('');
       return;
     }
 
     if (!users || users.length === 0) {
-      setError('ইউজার লিস্ট লোড হচ্ছে, একটু অপেক্ষা করুন...');
+      // If list is somehow empty but we reached here, try Admin/1234 as fallback
+      if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
+        onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
+        return;
+      }
+      setError('ইউজার লিস্ট পাওয়া যাচ্ছে না। রিফ্রেশ করুন।');
       setPin('');
       return;
     }
 
-    const foundUser = users.find(u => u.name.toLowerCase() === userName.trim().toLowerCase());
+    const foundUser = users.find(u => u.name.toLowerCase() === cleanName.toLowerCase());
     
     if (!foundUser) {
+      // Hard fallback for the requested Admin/1234
+      if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
+        onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
+        return;
+      }
       setError('ইউজার পাওয়া যায়নি! সঠিক নাম লিখুন');
       setPin('');
       return;
@@ -88,10 +99,10 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       if (success) {
         setError('সিঙ্ক সফল হয়েছে! এখন লগিন করুন।');
       } else {
-        setError('ডাটাবেসে কোনো তথ্য পাওয়া যায়নি।');
+        setError('সার্ভারে কোনো ডাটা পাওয়া যায়নি।');
       }
     } catch (e) {
-      setError('কানেকশন সমস্যা। ইন্টার চেক করুন।');
+      setError('সার্ভার কানেকশন সমস্যা।');
     } finally {
       setIsRestoring(false);
     }
@@ -114,17 +125,13 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
           ) : (
             <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {setupMode ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-              )}
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
             </svg>
           )}
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
-        <p className="text-pink-100 text-sm mt-1">
-          {isLoadingUsers ? 'ইউজার লিস্ট ডাউনলোড হচ্ছে...' : (setupMode ? 'আপনার নতুন পিন সেট করুন' : 'আপনার নাম ও পিন ব্যবহার করুন')}
+        <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
+          {setupMode ? 'আপনার প্রথম অ্যাডমিন ইউজার তৈরি করুন' : 'ডিফল্ট অ্যাডমিন ইউজার: Admin এবং পিন: 1234'}
         </p>
       </div>
 
@@ -134,7 +141,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1">ইউজার নেম</label>
             <input 
               type="text" 
-              placeholder="নাম লিখুন"
+              placeholder="নাম লিখুন (যেমন: Admin)"
               className="w-full bg-white/10 border border-white/30 rounded-xl p-4 outline-none text-white font-bold text-center placeholder:text-pink-300"
               value={userName}
               onChange={e => {setUserName(e.target.value); setError('');}}
@@ -164,17 +171,11 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
                 </div>
               ))}
             </div>
-            <button 
-              onClick={() => setShowPin(!showPin)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 text-pink-200 p-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-            </button>
           </div>
         </div>
       </div>
 
-      {error && <p className={`mb-6 text-sm bg-black/30 px-4 py-2 rounded-xl text-center font-bold ${error.includes('সফল') ? 'text-green-300' : 'text-white animate-pulse'}`}>{error}</p>}
+      {error && <p className={`mb-6 text-[11px] bg-black/40 px-4 py-2 rounded-xl text-center font-bold text-white shadow-xl`}>{error}</p>}
 
       <div className="grid grid-cols-3 gap-6 w-full max-w-xs mb-8">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'delete', 0, 'ok'].map(btn => {
@@ -191,19 +192,17 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-[240px]">
-        <button 
-          onClick={handleCloudRestore}
-          disabled={isLoadingUsers}
-          className="w-full bg-white/10 border border-white/30 py-3 rounded-xl font-black text-[10px] uppercase tracking-[2px] hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {isLoadingUsers ? 'Loading...' : 'Force Cloud Sync'}
-        </button>
-        
-        {users.length > 0 && setupMode && (
-          <button onClick={() => setSetupMode(false)} className="text-white/60 text-[10px] font-bold uppercase tracking-widest text-center">লগইন স্ক্রিনে যান</button>
+        {!setupMode && (
+          <button 
+            onClick={handleCloudRestore}
+            disabled={isLoadingUsers}
+            className="w-full bg-white/10 border border-white/30 py-3 rounded-xl font-black text-[10px] uppercase tracking-[2px] hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isLoadingUsers ? 'Syncing...' : 'Force Restore from Cloud'}
+          </button>
         )}
         
-        <button onClick={onReset} className="text-pink-200 text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity text-center mt-2 underline">Reset App Local Storage</button>
+        <button onClick={onReset} className="text-pink-200 text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity text-center mt-2 underline">Reset Local Data</button>
       </div>
     </div>
   );
