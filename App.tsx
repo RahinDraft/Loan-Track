@@ -32,9 +32,11 @@ const App: React.FC = () => {
   const pullFromSupabase = useCallback(async () => {
     setIsSyncing(true);
     try {
+      // 1. Fetch Users
       const { data: userData, error: userError } = await supabase.from('users').select('*');
       if (userError) throw userError;
 
+      // 2. Fetch Loans
       const { data: loanData, error: loanError } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
       if (loanError) throw loanError;
 
@@ -42,7 +44,7 @@ const App: React.FC = () => {
         setUsers(userData as UserAccount[]);
         localStorage.setItem(USERS_KEY, JSON.stringify(userData));
         setIsFirstRun(false);
-      } else {
+      } else if (!users.length) {
         setIsFirstRun(true);
       }
 
@@ -63,11 +65,11 @@ const App: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [users.length]);
 
   useEffect(() => {
     const init = async () => {
-      // Load local data first for instant UI
+      // Step 1: Try to load from local storage
       const savedLoans = localStorage.getItem(STORAGE_KEY);
       const savedUsers = localStorage.getItem(USERS_KEY);
 
@@ -80,10 +82,11 @@ const App: React.FC = () => {
         setIsFirstRun(true);
       }
 
-      setIsLoaded(true);
-      
-      // Crucial: Always sync with cloud immediately to overwrite stale local data
+      // Step 2: Sync with cloud to ensure we have the latest
       await pullFromSupabase();
+      
+      // Step 3: Now show the app
+      setIsLoaded(true);
     };
 
     init();
@@ -168,9 +171,10 @@ const App: React.FC = () => {
   }, [loans, filterUser, currentUser]);
 
   if (!isLoaded) return (
-    <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center font-['Hind_Siliguri']">
-      <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
-      <div className="text-white font-bold">সিঙ্ক হচ্ছে...</div>
+    <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center font-['Hind_Siliguri'] p-6 text-center">
+      <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-6"></div>
+      <h2 className="text-white text-xl font-bold mb-2">সার্ভারের সাথে সিঙ্ক হচ্ছে...</h2>
+      <p className="text-pink-100 text-sm opacity-80">দয়া করে কিছুক্ষণ অপেক্ষা করুন। আপনার ডাটা সুরক্ষিতভাবে লোড করা হচ্ছে।</p>
     </div>
   );
 
@@ -179,6 +183,7 @@ const App: React.FC = () => {
       <Auth 
         users={users} 
         isFirstRun={isFirstRun}
+        isSyncing={isSyncing}
         onRestore={pullFromSupabase}
         onSetupAdmin={(admin) => {
           setUsers([admin]);
