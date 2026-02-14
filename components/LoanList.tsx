@@ -28,21 +28,19 @@ const LoanList: React.FC<LoanListProps> = ({
 }) => {
   const [notifyingInstallment, setNotifyingInstallment] = useState<{ loan: Loan, inst: Installment, type: 'success' | 'congrats' } | null>(null);
   
-  // Refs for scrolling
-  const listRef = useRef<HTMLDivElement>(null);
-
-  // Handle auto-scrolling when an installment is highlighted
+  // Handle auto-scrolling and focusing when an installment is triggered
   useEffect(() => {
     if (highlightedInstallmentId) {
-      // Small delay to allow expansion animation to start/finish
-      setTimeout(() => {
+      // Small delay to ensure the card is expanded and the "All" filter is applied in DOM
+      const timer = setTimeout(() => {
         const element = document.getElementById(`inst-${highlightedInstallmentId}`);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-      }, 100);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [highlightedInstallmentId, expandedLoanId]);
+  }, [highlightedInstallmentId, expandedLoanId, loans.length]);
 
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('bn-BD', {
@@ -126,7 +124,7 @@ const LoanList: React.FC<LoanListProps> = ({
   }
 
   return (
-    <div className="space-y-4" ref={listRef}>
+    <div className="space-y-4">
       {loans.map(loan => {
         const isExp = expandedLoanId === loan.id;
         const totalPaidAmount = loan.installments.filter(i => i.status === 'Paid').reduce((s, i) => s + i.amount, 0);
@@ -215,7 +213,7 @@ const LoanList: React.FC<LoanListProps> = ({
                       <div 
                         key={inst.id} 
                         id={`inst-${inst.id}`} 
-                        className={`flex gap-4 p-2 -m-2 rounded-xl transition-all duration-700 ${isHighlighted ? 'bg-yellow-50 ring-2 ring-yellow-400 shadow-lg scale-[1.02] z-10' : ''}`}
+                        className={`flex gap-4 p-3 rounded-xl transition-all duration-500 ${isHighlighted ? 'inst-highlight' : ''}`}
                       >
                          <div className="flex flex-col items-center">
                             <div 
@@ -227,11 +225,11 @@ const LoanList: React.FC<LoanListProps> = ({
                             {idx !== loan.installments.length - 1 && <div className="w-0.5 flex-1 bg-gray-100 my-1"></div>}
                          </div>
                          <div className="flex-1 pb-6 flex justify-between items-start">
-                            <div className={isHighlighted ? 'animate-pulse' : ''}>
-                               <p className="text-xs font-black text-gray-800 mb-0.5">{inst.date}</p>
+                            <div>
+                               <p className={`text-xs font-black mb-0.5 ${isHighlighted ? 'text-bkash-pink' : 'text-gray-800'}`}>{inst.date}</p>
                                <div className="flex items-center gap-2">
                                  <p className="text-sm font-black text-gray-900">{formatCurrency(inst.amount)}</p>
-                                 {isHighlighted && <span className="text-[8px] bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full font-black animate-bounce">লক্ষ্য</span>}
+                                 {isHighlighted && <span className="text-[8px] bg-bkash-pink text-white px-2 py-0.5 rounded-full font-black animate-bounce">ফোকাস</span>}
                                </div>
                                <p className="text-[9px] text-gray-400 font-bold">আসল {formatCurrency(inst.principalPart)} + সুদ {formatCurrency(inst.interestPart)}</p>
                             </div>
