@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount } from '../types';
+import { UserAccount } from '../types.ts';
 
 interface AuthProps {
   users: UserAccount[];
@@ -62,7 +62,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     const foundUser = users.find(u => u.name.toLowerCase() === cleanName.toLowerCase());
     
     if (!foundUser) {
-      // Manual fallback for very first run if storage is lost
+      // Manual fallback for first-time deploy only
       if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
         onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
         return;
@@ -120,7 +120,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং ৪ ডিজিট পিন দিন
+          আপনার অ্যাকাউন্টে প্রবেশ করতে সঠিক নাম এবং পিন দিন
         </p>
       </div>
 
@@ -156,7 +156,6 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             <div className="flex justify-center gap-4 py-2">
               {[1, 2, 3, 4].map((_, i) => (
                 <div key={i} className={`w-4 h-4 rounded-full border-2 border-white transition-all duration-300 flex items-center justify-center ${pin.length > i ? 'bg-white scale-125' : 'bg-transparent'}`}>
-                  {showPin && pin.length > i && <span className="text-bkash-pink text-[8px] font-black">{pin[i]}</span>}
                 </div>
               ))}
             </div>

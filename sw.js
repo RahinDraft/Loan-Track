@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bkash-loan-v7'; 
+const CACHE_NAME = 'bkash-loan-v8'; 
 const ASSETS = [
   './',
   './index.html',
@@ -17,7 +17,7 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          // Delete every single cache that is not v7
+          // Delete ALL caches to ensure clean state
           return caches.delete(key);
         })
       );

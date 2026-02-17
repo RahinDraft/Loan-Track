@@ -46,10 +46,10 @@
 </head>
 <body>
     <div id="root"></div>
-    <!-- Script tag with version busting -->
-    <script type="module" src="./index.tsx?v=1.0.7"></script>
+    <!-- Script tag with version busting to bypass cache -->
+    <script type="module" src="./index.tsx?v=1.0.8"></script>
     <script>
-        const CURRENT_VERSION = '1.0.7';
+        const CURRENT_VERSION = '1.0.8';
 
         async function forceUpdatePWA() {
             const savedVersion = localStorage.getItem('app_version');
@@ -72,7 +72,7 @@
 
                 localStorage.setItem('app_version', CURRENT_VERSION);
                 // Hard reload ignoring cache
-                window.location.href = window.location.href.split('?')[0] + '?update=' + CURRENT_VERSION;
+                window.location.href = window.location.origin + window.location.pathname + '?upd=' + CURRENT_VERSION;
             }
         }
 
@@ -80,7 +80,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=7', { scope: './' })
+                navigator.serviceWorker.register('./sw.js?v=8', { scope: './' })
                     .then(reg => {
                         reg.onupdatefound = () => {
                             const installingWorker = reg.installing;
