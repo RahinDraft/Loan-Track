@@ -30,7 +30,6 @@ const App: React.FC = () => {
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
   const [syncError, setSyncError] = useState(false);
   
-  // States for navigation focus
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
   const [highlightedInstId, setHighlightedInstId] = useState<string | null>(null);
 
@@ -47,11 +46,9 @@ const App: React.FC = () => {
       let finalUsers: UserAccount[] = [];
       if (userData && userData.length > 0) {
         finalUsers = userData as UserAccount[];
-        setIsFirstRun(false);
       } else {
         const defaultAdmin: UserAccount = { name: 'Admin', phone: '', pin: '1234', role: 'admin' };
         finalUsers = [defaultAdmin];
-        setIsFirstRun(false);
         await supabase.from('users').upsert([defaultAdmin]);
       }
 
@@ -84,41 +81,24 @@ const App: React.FC = () => {
       const savedUsers = localStorage.getItem(USERS_KEY);
 
       if (savedLoans) setLoans(JSON.parse(savedLoans));
-      if (savedUsers) {
-        setUsers(JSON.parse(savedUsers));
-      } else {
-        setUsers([{ name: 'Admin', phone: '', pin: '1234', role: 'admin' }]);
-      }
-
-      const syncTimeout = setTimeout(() => {
-        if (!isLoaded) {
-          setIsLoaded(true);
-          setSyncError(true);
-        }
-      }, 5000);
+      if (savedUsers) setUsers(JSON.parse(savedUsers));
 
       await pullFromSupabase();
-      
-      clearTimeout(syncTimeout);
       setIsLoaded(true);
     };
-
     init();
   }, [pullFromSupabase]);
 
   const syncToSupabase = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
     if (currentUser?.role !== 'admin') return;
-    
     setIsSyncing(true);
     try {
       const cleanLoans = currentLoans.map(({ created_at, ...l }: any) => ({
         ...l,
         installments: l.installments
       }));
-
       await supabase.from('users').upsert(currentUsers, { onConflict: 'name' });
       await supabase.from('loans').upsert(cleanLoans, { onConflict: 'id' });
-
       setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
     } catch (error) {
       console.error("Sync Error:", error);
@@ -132,7 +112,6 @@ const App: React.FC = () => {
     setUsers(newUsers);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newLoans));
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
-    
     if (currentUser?.role === 'admin') {
       syncToSupabase(newLoans, newUsers);
     }
@@ -149,43 +128,33 @@ const App: React.FC = () => {
   };
 
   const deleteLoan = async (id: string) => {
-    if (window.confirm('এই রেকর্ডটি কি মুছে ফেলতে চান? এটি ক্লাউড থেকেও মুছে যাবে।')) {
+    if (window.confirm('এই রেকর্ডটি কি মুছে ফেলতে চান?')) {
       const updatedLoans = loans.filter(l => l.id !== id);
       setLoans(updatedLoans);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLoans));
-      
       if (currentUser?.role === 'admin') {
-        setIsSyncing(true);
         try {
           await supabase.from('loans').delete().eq('id', id);
-          setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
-        } catch (err) {
-          console.error("Delete failed", err);
-        } finally {
-          setIsSyncing(false);
-        }
+        } catch (err) { console.error(err); }
       }
     }
   };
 
   const handleInstallmentFocus = (loanId: string, instId: string) => {
-    setFilterUser('All'); // Only relevant for Admin
     setExpandedLoanId(loanId);
     setHighlightedInstId(instId);
-    
-    setTimeout(() => {
-      setHighlightedInstId(null);
-    }, 3000);
+    setTimeout(() => setHighlightedInstId(null), 3000);
   };
 
-  // STRICT DATA ISOLATION
+  // STRICT DATA ISOLATION LOGIC
   const filteredLoans = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'admin') {
-      return filterUser === 'All' ? loans : loans.filter(l => l.userName === filterUser);
+      if (filterUser === 'All') return loans;
+      return loans.filter(l => l.userName.toLowerCase() === filterUser.toLowerCase());
     }
-    // Regular users ONLY see their own loans
-    return loans.filter(l => l.userName === currentUser.name);
+    // Non-admin can ONLY see loans that match their own name exactly (case-insensitive)
+    return loans.filter(l => l.userName.toLowerCase() === currentUser.name.toLowerCase());
   }, [loans, filterUser, currentUser]);
 
   const stats = useMemo(() => {
@@ -201,18 +170,9 @@ const App: React.FC = () => {
   }, [filteredLoans]);
 
   if (!isLoaded) return (
-    <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center font-['Hind_Siliguri'] p-6 text-center">
+    <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center p-6 text-center">
       <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-6"></div>
       <h2 className="text-white text-xl font-bold mb-2">সার্ভারের সাথে সিঙ্ক হচ্ছে...</h2>
-      <p className="text-pink-100 text-sm opacity-80 mb-6">দয়া করে কিছুক্ষণ অপেক্ষা করুন।</p>
-      {syncError && (
-        <button 
-          onClick={() => setIsLoaded(true)}
-          className="bg-white/20 px-6 py-2 rounded-full text-xs font-bold text-white border border-white/30"
-        >
-          Skip and use Local Cache
-        </button>
-      )}
     </div>
   );
 
@@ -227,7 +187,6 @@ const App: React.FC = () => {
           setUsers([admin]);
           setCurrentUser(admin);
           setIsAuthenticated(true);
-          setIsFirstRun(false);
           handleDataChange([], [admin]);
         }}
         onSuccess={(user) => {
@@ -236,10 +195,8 @@ const App: React.FC = () => {
           pullFromSupabase();
         }} 
         onReset={() => {
-           if(window.confirm("সাবধান! সব লোকাল ডাটা মুছে যাবে। ক্লাউড ডাটা মুছবে না। নিশ্চিত?")) {
-             localStorage.clear();
-             window.location.reload();
-           }
+           localStorage.clear();
+           window.location.reload();
         }}
       />
     );
@@ -262,12 +219,8 @@ const App: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => pullFromSupabase()} className={`p-2 bg-white/10 rounded-full transition-all ${isSyncing ? 'rotate-180 opacity-50' : 'active:scale-90'}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-            </button>
-            <button onClick={() => { setIsAuthenticated(false); setFilterUser('All'); }} className="p-2 bg-white/10 rounded-full active:scale-90">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-            </button>
+            <button onClick={() => pullFromSupabase()} className="p-2 bg-white/10 rounded-full active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+            <button onClick={() => { setIsAuthenticated(false); setFilterUser('All'); }} className="p-2 bg-white/10 rounded-full active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
           </div>
         </div>
       </header>
@@ -288,7 +241,6 @@ const App: React.FC = () => {
           loans={filteredLoans} 
           users={users} 
           isAdmin={isAdmin}
-          onUserClick={(name) => isAdmin && setFilterUser(name)}
           onInstallmentClick={handleInstallmentFocus}
         />
         
@@ -300,7 +252,6 @@ const App: React.FC = () => {
             onEdit={(loan) => setEditingLoan(loan)} 
             onDelete={isAdmin ? deleteLoan : undefined} 
             isAdmin={isAdmin} 
-            onUserClick={(name) => isAdmin && setFilterUser(name)}
             expandedLoanId={expandedLoanId}
             onExpandChange={setExpandedLoanId}
             highlightedInstallmentId={highlightedInstId}
@@ -309,7 +260,7 @@ const App: React.FC = () => {
       </main>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white/90 backdrop-blur-xl py-4 px-8 flex justify-between items-center z-50 shadow-2xl rounded-[30px] border border-white/20">
-        <button onClick={() => { setShowSettings(false); setFilterUser('All'); setExpandedLoanId(null); }} className="flex flex-col items-center gap-1 transition-all active:scale-90">
+        <button onClick={() => { setShowSettings(false); setExpandedLoanId(null); }} className="flex flex-col items-center gap-1 transition-all active:scale-90">
           <svg className={`w-6 h-6 ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span className={`text-[10px] font-bold ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`}>হোম</span>
         </button>
@@ -328,16 +279,7 @@ const App: React.FC = () => {
 
       {(showForm || editingLoan) && <LoanForm onClose={() => { setShowForm(false); setEditingLoan(null); }} onSubmit={editingLoan ? updateLoan : addLoan} existingUsers={users.filter(u => u.role !== 'admin').map(u => u.name)} editingLoan={editingLoan} />}
       {showSettings && isAdmin && (
-        <Settings 
-          onClose={() => setShowSettings(false)} 
-          currentUser={currentUser} 
-          users={users} 
-          setUsers={(u) => handleDataChange(loans, u)} 
-          loans={loans} 
-          setLoans={(l) => handleDataChange(l, users)} 
-          onRefresh={pullFromSupabase}
-          isSyncing={isSyncing}
-        />
+        <Settings onClose={() => setShowSettings(false)} currentUser={currentUser} users={users} setUsers={(u) => handleDataChange(loans, u)} loans={loans} setLoans={(l) => handleDataChange(l, users)} onRefresh={pullFromSupabase} isSyncing={isSyncing} />
       )}
     </div>
   );
