@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Loan, LoanStatus, UserAccount } from './types.ts';
-import Dashboard from './components/Dashboard.tsx';
-import LoanForm from './components/LoanForm.tsx';
-import LoanList from './components/LoanList.tsx';
-import Auth from './components/Auth.tsx';
-import Settings from './components/Settings.tsx';
+import { Loan, LoanStatus, UserAccount } from './types';
+import Dashboard from './components/Dashboard';
+import LoanForm from './components/LoanForm';
+import LoanList from './components/LoanList';
+import Auth from './components/Auth';
+import Settings from './components/Settings';
 
-const APP_VERSION = "v1.1.3";
+const APP_VERSION = "v1.1.4";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
@@ -167,7 +167,7 @@ const App: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => pullFromSupabase()} className="p-2 bg-white/10 rounded-full active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+            <button onClick={() => pullFromSupabase()} className="p-2 bg-white/10 rounded-full active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357-2H15"></path></svg></button>
             <button onClick={() => { setIsAuthenticated(false); setFilterUser('All'); }} className="p-2 bg-white/10 rounded-full active:scale-90"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
           </div>
         </div>
