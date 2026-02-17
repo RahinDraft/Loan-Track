@@ -59,19 +59,10 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       return;
     }
 
-    if (!users || users.length === 0) {
-      if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
-        onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
-        return;
-      }
-      setError('ইউজার লিস্ট পাওয়া যাচ্ছে না। রিফ্রেশ করুন।');
-      setPin('');
-      return;
-    }
-
     const foundUser = users.find(u => u.name.toLowerCase() === cleanName.toLowerCase());
     
     if (!foundUser) {
+      // Manual fallback for very first run if storage is lost
       if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
         onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
         return;
@@ -129,7 +120,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          {setupMode ? 'আপনার প্রথম অ্যাডমিন ইউজার তৈরি করুন' : 'আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং পিন দিন'}
+          আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং ৪ ডিজিট পিন দিন
         </p>
       </div>
 

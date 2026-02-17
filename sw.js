@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bkash-loan-v6'; 
+const CACHE_NAME = 'bkash-loan-v7'; 
 const ASSETS = [
   './',
   './index.html',
@@ -17,10 +17,8 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log('Deleting old cache:', key);
-            return caches.delete(key);
-          }
+          // Delete every single cache that is not v7
+          return caches.delete(key);
         })
       );
     })
@@ -29,15 +27,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.mode === 'navigate' || e.request.destination === 'script') {
+  if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          const resClone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resClone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
+      fetch(e.request).catch(() => caches.match('./index.html'))
     );
   } else {
     e.respondWith(

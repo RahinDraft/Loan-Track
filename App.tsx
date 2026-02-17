@@ -7,7 +7,7 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
-const APP_VERSION = "v1.0.6";
+const APP_VERSION = "v1.0.7";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
@@ -26,10 +26,8 @@ const App: React.FC = () => {
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isFirstRun, setIsFirstRun] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string>('');
   
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
   const [highlightedInstId, setHighlightedInstId] = useState<string | null>(null);
@@ -53,8 +51,6 @@ const App: React.FC = () => {
         setLoans(transformedLoans);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(transformedLoans));
       }
-      
-      setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
       return true;
     } catch (error) {
       console.error(error);
@@ -83,7 +79,6 @@ const App: React.FC = () => {
       const cleanLoans = currentLoans.map(({ created_at, ...l }: any) => l);
       await supabase.from('users').upsert(currentUsers, { onConflict: 'name' });
       await supabase.from('loans').upsert(cleanLoans, { onConflict: 'id' });
-      setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
     } catch (error) { console.error(error); } finally { setIsSyncing(false); }
   }, [currentUser]);
 
