@@ -102,7 +102,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
                     </div>
                     <div>
                       <p className="font-bold text-sm text-gray-800">{u.name}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{u.role} • PIN: {u.pin}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{u.role} • PIN: ••••</p>
                     </div>
                   </div>
                   {u.name !== currentUser?.name && (

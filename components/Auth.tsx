@@ -41,7 +41,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     
     if (setupMode && onSetupAdmin) {
       if (pin.length !== 4) {
-        setError('৪ ডিজিটের পিন দিন');
+        setError('৪ ডিজিটের কোড দিন');
         return;
       }
       onSetupAdmin({
@@ -54,7 +54,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     }
 
     if (!cleanName) {
-      setError('ইউজার নেম দিন (যেমন: Admin)');
+      setError('ইউজার নেম দিন');
       setPin('');
       return;
     }
@@ -67,7 +67,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
         return;
       }
-      setError('ইউজার পাওয়া যায়নি! সঠিক নাম লিখুন');
+      setError('ইউজার পাওয়া যায়নি');
       setPin('');
       return;
     }
@@ -75,7 +75,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     if (pin === foundUser.pin) {
       onSuccess(foundUser);
     } else {
-      setError('ভুল পিন! আবার চেষ্টা করুন');
+      setError('ভুল কোড! আবার চেষ্টা করুন');
       setPin('');
     }
   };
@@ -118,9 +118,9 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             </svg>
           )}
         </div>
-        <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
+        <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'প্রবেশ করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          আপনার অ্যাকাউন্টে প্রবেশ করতে সঠিক নাম এবং ৪ ডিজিট পিন দিন
+          আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং কোড দিন
         </p>
       </div>
 
@@ -130,7 +130,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1">ইউজার নেম</label>
             <input 
               type="text" 
-              placeholder="নাম লিখুন (যেমন: Admin)"
+              placeholder="নাম লিখুন"
               className="w-full bg-white/10 border border-white/30 rounded-xl p-4 outline-none text-white font-bold text-center placeholder:text-pink-300"
               value={userName}
               onChange={e => {setUserName(e.target.value); setError('');}}
@@ -151,7 +151,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         )}
 
         <div>
-          <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1 text-center">৪ ডিজিট পিন দিন</label>
+          <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1 text-center">নিরাপত্তা কোড দিন</label>
           <div className="relative">
             <div className="flex justify-center gap-4 py-2">
               {[1, 2, 3, 4].map((_, i) => (
