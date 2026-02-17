@@ -62,7 +62,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, filterUser, loans, users =
       })
       .filter(item => item !== null)
       .sort((a, b) => new Date(a!.date).getTime() - new Date(b!.date).getTime());
-  }, [loans]);
+  }, [loans]); // 'loans' is already filtered in App.tsx
 
   return (
     <div className="space-y-6">

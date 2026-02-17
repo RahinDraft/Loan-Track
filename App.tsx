@@ -169,22 +169,27 @@ const App: React.FC = () => {
   };
 
   const handleInstallmentFocus = (loanId: string, instId: string) => {
-    setFilterUser('All'); // Ensure the loan is in the list
+    setFilterUser('All'); // Only relevant for Admin
     setExpandedLoanId(loanId);
     setHighlightedInstId(instId);
     
-    // Clear highlight after 3 seconds
     setTimeout(() => {
       setHighlightedInstId(null);
     }, 3000);
   };
 
-  const stats = useMemo(() => {
-    const vLoans = currentUser?.role === 'admin' && filterUser === 'All' 
-      ? loans 
-      : loans.filter(l => l.userName === (currentUser?.role === 'admin' ? filterUser : currentUser?.name));
+  // STRICT DATA ISOLATION
+  const filteredLoans = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'admin') {
+      return filterUser === 'All' ? loans : loans.filter(l => l.userName === filterUser);
+    }
+    // Regular users ONLY see their own loans
+    return loans.filter(l => l.userName === currentUser.name);
+  }, [loans, filterUser, currentUser]);
 
-    return vLoans.reduce((acc, loan) => {
+  const stats = useMemo(() => {
+    return filteredLoans.reduce((acc, loan) => {
       const paid = loan.installments.reduce((sum, inst) => inst.status === 'Paid' ? sum + inst.amount : sum, 0);
       return {
         totalLoanAmount: acc.totalLoanAmount + loan.totalPayable,
@@ -193,7 +198,7 @@ const App: React.FC = () => {
         activeLoansCount: acc.activeLoansCount + (loan.status === LoanStatus.ACTIVE ? 1 : 0)
       };
     }, { totalLoanAmount: 0, totalPaid: 0, totalRemaining: 0, activeLoansCount: 0 });
-  }, [loans, filterUser, currentUser]);
+  }, [filteredLoans]);
 
   if (!isLoaded) return (
     <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center font-['Hind_Siliguri'] p-6 text-center">
@@ -260,7 +265,7 @@ const App: React.FC = () => {
             <button onClick={() => pullFromSupabase()} className={`p-2 bg-white/10 rounded-full transition-all ${isSyncing ? 'rotate-180 opacity-50' : 'active:scale-90'}`}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </button>
-            <button onClick={() => setIsAuthenticated(false)} className="p-2 bg-white/10 rounded-full active:scale-90">
+            <button onClick={() => { setIsAuthenticated(false); setFilterUser('All'); }} className="p-2 bg-white/10 rounded-full active:scale-90">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
             </button>
           </div>
@@ -279,8 +284,8 @@ const App: React.FC = () => {
 
         <Dashboard 
           stats={stats} 
-          filterUser={isAdmin ? filterUser : currentUser?.name || 'All'} 
-          loans={loans} 
+          filterUser={isAdmin ? filterUser : (currentUser?.name || 'All')} 
+          loans={filteredLoans} 
           users={users} 
           isAdmin={isAdmin}
           onUserClick={(name) => isAdmin && setFilterUser(name)}
@@ -289,7 +294,7 @@ const App: React.FC = () => {
         
         <div className="mt-8">
           <LoanList 
-            loans={isAdmin && filterUser === 'All' ? loans : loans.filter(l => l.userName === (isAdmin ? filterUser : currentUser?.name))} 
+            loans={filteredLoans} 
             users={users} 
             onUpdate={updateLoan} 
             onEdit={(loan) => setEditingLoan(loan)} 
