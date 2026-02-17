@@ -7,6 +7,8 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
+const APP_VERSION = "v1.0.5";
+
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Y3VxYmpjdG9lYXFtdGVzb2J1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNTY3OTcsImV4cCI6MjA4NjYzMjc5N30.17daHgzsoNB3NgyfCIGWLPglv6iYIkr2bGfjIn1isKk';
@@ -28,47 +30,34 @@ const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
-  const [syncError, setSyncError] = useState(false);
   
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
   const [highlightedInstId, setHighlightedInstId] = useState<string | null>(null);
 
   const pullFromSupabase = useCallback(async () => {
     setIsSyncing(true);
-    setSyncError(false);
     try {
-      const { data: userData, error: userError } = await supabase.from('users').select('*');
-      if (userError) throw userError;
+      const { data: userData } = await supabase.from('users').select('*');
+      const { data: loanData } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
 
-      const { data: loanData, error: loanError } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
-      if (loanError) throw loanError;
-
-      let finalUsers: UserAccount[] = [];
-      if (userData && userData.length > 0) {
-        finalUsers = userData as UserAccount[];
-      } else {
-        const defaultAdmin: UserAccount = { name: 'Admin', phone: '', pin: '1234', role: 'admin' };
-        finalUsers = [defaultAdmin];
-        await supabase.from('users').upsert([defaultAdmin]);
+      if (userData) {
+        setUsers(userData);
+        localStorage.setItem(USERS_KEY, JSON.stringify(userData));
       }
-
-      setUsers(finalUsers);
-      localStorage.setItem(USERS_KEY, JSON.stringify(finalUsers));
 
       if (loanData) {
         const transformedLoans = loanData.map(l => ({
           ...l,
           installments: typeof l.installments === 'string' ? JSON.parse(l.installments) : l.installments
         }));
-        setLoans(transformedLoans as Loan[]);
+        setLoans(transformedLoans);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(transformedLoans));
       }
       
       setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
       return true;
     } catch (error) {
-      console.error("Cloud Fetch Error:", error);
-      setSyncError(true);
+      console.error(error);
       return false;
     } finally {
       setIsSyncing(false);
@@ -79,10 +68,8 @@ const App: React.FC = () => {
     const init = async () => {
       const savedLoans = localStorage.getItem(STORAGE_KEY);
       const savedUsers = localStorage.getItem(USERS_KEY);
-
       if (savedLoans) setLoans(JSON.parse(savedLoans));
       if (savedUsers) setUsers(JSON.parse(savedUsers));
-
       await pullFromSupabase();
       setIsLoaded(true);
     };
@@ -93,18 +80,11 @@ const App: React.FC = () => {
     if (currentUser?.role !== 'admin') return;
     setIsSyncing(true);
     try {
-      const cleanLoans = currentLoans.map(({ created_at, ...l }: any) => ({
-        ...l,
-        installments: l.installments
-      }));
+      const cleanLoans = currentLoans.map(({ created_at, ...l }: any) => l);
       await supabase.from('users').upsert(currentUsers, { onConflict: 'name' });
       await supabase.from('loans').upsert(cleanLoans, { onConflict: 'id' });
       setLastSyncTime(new Date().toLocaleTimeString('bn-BD'));
-    } catch (error) {
-      console.error("Sync Error:", error);
-    } finally {
-      setIsSyncing(false);
-    }
+    } catch (error) { console.error(error); } finally { setIsSyncing(false); }
   }, [currentUser]);
 
   const handleDataChange = (newLoans: Loan[], newUsers: UserAccount[]) => {
@@ -112,9 +92,7 @@ const App: React.FC = () => {
     setUsers(newUsers);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newLoans));
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
-    if (currentUser?.role === 'admin') {
-      syncToSupabase(newLoans, newUsers);
-    }
+    if (currentUser?.role === 'admin') syncToSupabase(newLoans, newUsers);
   };
 
   const addLoan = (newLoan: Loan) => {
@@ -128,15 +106,11 @@ const App: React.FC = () => {
   };
 
   const deleteLoan = async (id: string) => {
-    if (window.confirm('এই রেকর্ডটি কি মুছে ফেলতে চান?')) {
+    if (window.confirm('মুছে ফেলতে চান?')) {
       const updatedLoans = loans.filter(l => l.id !== id);
       setLoans(updatedLoans);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLoans));
-      if (currentUser?.role === 'admin') {
-        try {
-          await supabase.from('loans').delete().eq('id', id);
-        } catch (err) { console.error(err); }
-      }
+      if (currentUser?.role === 'admin') await supabase.from('loans').delete().eq('id', id);
     }
   };
 
@@ -146,14 +120,12 @@ const App: React.FC = () => {
     setTimeout(() => setHighlightedInstId(null), 3000);
   };
 
-  // STRICT DATA ISOLATION LOGIC
   const filteredLoans = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'admin') {
       if (filterUser === 'All') return loans;
       return loans.filter(l => l.userName.toLowerCase() === filterUser.toLowerCase());
     }
-    // Non-admin can ONLY see loans that match their own name exactly (case-insensitive)
     return loans.filter(l => l.userName.toLowerCase() === currentUser.name.toLowerCase());
   }, [loans, filterUser, currentUser]);
 
@@ -169,35 +141,17 @@ const App: React.FC = () => {
     }, { totalLoanAmount: 0, totalPaid: 0, totalRemaining: 0, activeLoansCount: 0 });
   }, [filteredLoans]);
 
-  if (!isLoaded) return (
-    <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-6"></div>
-      <h2 className="text-white text-xl font-bold mb-2">সার্ভারের সাথে সিঙ্ক হচ্ছে...</h2>
-    </div>
-  );
+  if (!isLoaded) return <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center p-6 text-white text-center">লোডিং...</div>;
 
   if (!isAuthenticated) {
     return (
       <Auth 
         users={users} 
-        isFirstRun={isFirstRun}
         isSyncing={isSyncing}
         onRestore={pullFromSupabase}
-        onSetupAdmin={(admin) => {
-          setUsers([admin]);
-          setCurrentUser(admin);
-          setIsAuthenticated(true);
-          handleDataChange([], [admin]);
-        }}
-        onSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-          pullFromSupabase();
-        }} 
-        onReset={() => {
-           localStorage.clear();
-           window.location.reload();
-        }}
+        onSetupAdmin={(admin) => { setUsers([admin]); setCurrentUser(admin); setIsAuthenticated(true); handleDataChange([], [admin]); }}
+        onSuccess={(user) => { setCurrentUser(user); setIsAuthenticated(true); pullFromSupabase(); }} 
+        onReset={() => { localStorage.clear(); window.location.reload(); }}
       />
     );
   }
@@ -211,11 +165,10 @@ const App: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold">বিকাশ লোন প্রো</h1>
-              <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-white animate-pulse' : 'bg-green-400'}`}></div>
+              <span className="text-[8px] bg-white/20 px-1.5 py-0.5 rounded-full font-bold opacity-60 tracking-tighter">{APP_VERSION}</span>
             </div>
             <p className="text-pink-100 text-[10px] font-bold uppercase tracking-wider">
               {isAdmin ? 'অ্যাডমিন' : 'ইউজার'}: {currentUser?.name}
-              {lastSyncTime && ` • আপডেট: ${lastSyncTime}`}
             </p>
           </div>
           <div className="flex gap-2">

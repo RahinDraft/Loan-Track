@@ -60,7 +60,6 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     }
 
     if (!users || users.length === 0) {
-      // If list is somehow empty but we reached here, try Admin/1234 as fallback
       if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
         onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
         return;
@@ -73,7 +72,6 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     const foundUser = users.find(u => u.name.toLowerCase() === cleanName.toLowerCase());
     
     if (!foundUser) {
-      // Hard fallback for the requested Admin/1234
       if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
         onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
         return;
@@ -131,7 +129,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          {setupMode ? 'আপনার প্রথম অ্যাডমিন ইউজার তৈরি করুন' : 'ডিফল্ট অ্যাডমিন ইউজার: Admin এবং পিন: 1234'}
+          {setupMode ? 'আপনার প্রথম অ্যাডমিন ইউজার তৈরি করুন' : 'আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং পিন দিন'}
         </p>
       </div>
 
