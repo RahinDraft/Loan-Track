@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { Loan, LoanStatus, UserAccount } from './types';
 import Dashboard from './components/Dashboard';
@@ -7,7 +7,7 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
-const APP_VERSION = "v1.1.1";
+const APP_VERSION = "v1.1.2";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';

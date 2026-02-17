@@ -46,19 +46,32 @@
 </head>
 <body>
     <div id="root"></div>
-    <script type="module" src="./index.tsx?v=1.1.1"></script>
+    <!-- Version busting script to handle build deployment issues -->
+    <script type="module" src="./index.tsx?v=1.1.2"></script>
     <script>
-        // Version control without service worker friction in sandbox
-        const CURRENT_VERSION = '1.1.1';
+        const CURRENT_VERSION = '1.1.2';
         const savedVersion = localStorage.getItem('app_version');
+        
         if (savedVersion !== CURRENT_VERSION) {
+            console.log('New version detected: ' + CURRENT_VERSION);
             localStorage.setItem('app_version', CURRENT_VERSION);
-            // If the version changed, we clear specific non-essential caches
+            
+            // Clean caches aggressively
             if ('caches' in window) {
                 caches.keys().then(names => {
                     for (let name of names) caches.delete(name);
                 });
             }
+            
+            // Force hard reload to get latest Vercel build
+            window.location.reload(true);
+        }
+        
+        // Unregister any old service workers to fix origin/cache errors
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                for(let reg of regs) reg.unregister();
+            });
         }
     </script>
 </body>

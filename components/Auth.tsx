@@ -15,7 +15,6 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
   const [userName, setUserName] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  const [showPin, setShowPin] = useState(false);
   const [setupMode, setSetupMode] = useState(isFirstRun);
   const [adminName, setAdminName] = useState('Admin');
   const [isRestoring, setIsRestoring] = useState(false);
@@ -41,7 +40,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     
     if (setupMode && onSetupAdmin) {
       if (pin.length !== 4) {
-        setError('৪ ডিজিটের কোড দিন');
+        setError('৪ ডিজিটের পিন কোড দিন');
         return;
       }
       onSetupAdmin({
@@ -59,15 +58,11 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       return;
     }
 
+    // Rely strictly on Supabase/Local storage users
     const foundUser = users.find(u => u.name.toLowerCase() === cleanName.toLowerCase());
     
     if (!foundUser) {
-      // Manual fallback for first-time deploy only
-      if (cleanName.toLowerCase() === 'admin' && pin === '1234') {
-        onSuccess({ name: 'Admin', phone: '', pin: '1234', role: 'admin' });
-        return;
-      }
-      setError('ইউজার পাওয়া যায়নি');
+      setError('ইউজার পাওয়া যায়নি। ডাটা রিফ্রেশ করে দেখুন।');
       setPin('');
       return;
     }
@@ -75,7 +70,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     if (pin === foundUser.pin) {
       onSuccess(foundUser);
     } else {
-      setError('ভুল কোড! আবার চেষ্টা করুন');
+      setError('ভুল পিন! আবার চেষ্টা করুন');
       setPin('');
     }
   };
@@ -120,7 +115,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'প্রবেশ করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং কোড দিন
+          আপনার অ্যাকাউন্টে প্রবেশ করতে নাম এবং পিন দিন
         </p>
       </div>
 
@@ -151,7 +146,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         )}
 
         <div>
-          <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1 text-center">নিরাপত্তা কোড দিন</label>
+          <label className="text-[10px] font-bold uppercase text-pink-200 block mb-1 text-center">নিরাপত্তা পিন দিন</label>
           <div className="relative">
             <div className="flex justify-center gap-4 py-2">
               {[1, 2, 3, 4].map((_, i) => (
@@ -186,11 +181,11 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
             disabled={isLoadingUsers}
             className="w-full bg-white/10 border border-white/30 py-3 rounded-xl font-black text-[10px] uppercase tracking-[2px] hover:bg-white/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isLoadingUsers ? 'Syncing...' : 'Force Restore from Cloud'}
+            {isLoadingUsers ? 'সিঙ্ক হচ্ছে...' : 'ক্লাউড থেকে ডাটা আনুন'}
           </button>
         )}
         
-        <button onClick={onReset} className="text-pink-200 text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity text-center mt-2 underline">Reset Local Data</button>
+        <button onClick={onReset} className="text-pink-200 text-[9px] font-bold uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity text-center mt-2 underline">Reset Application</button>
       </div>
     </div>
   );
