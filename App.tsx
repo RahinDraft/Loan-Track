@@ -7,7 +7,7 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
-const APP_VERSION = "v1.1.5";
+const APP_VERSION = "v1.1.6";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
@@ -154,8 +154,8 @@ const App: React.FC = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl relative border-x border-gray-200 font-['Hind_Siliguri']">
-      <header className="bg-bkash-pink text-white pt-10 pb-16 px-6 sticky top-0 z-40 rounded-b-[40px] shadow-lg">
+    <div className="min-h-[100dvh] bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl relative border-x border-gray-200 font-['Hind_Siliguri'] overflow-hidden">
+      <header className="bg-bkash-pink text-white pt-[calc(env(safe-area-inset-top)+20px)] pb-16 px-6 sticky top-0 z-40 rounded-b-[40px] shadow-lg shrink-0">
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-2">
@@ -173,9 +173,9 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 px-4 -mt-10 pb-28 relative z-30">
+      <main className="flex-1 px-4 -mt-10 pb-[calc(env(safe-area-inset-bottom)+100px)] relative z-30 overflow-y-auto no-scrollbar">
         {isAdmin && (
-          <div className="flex bg-white rounded-2xl p-1 shadow-md mb-6 overflow-x-auto no-scrollbar border border-gray-100">
+          <div className="flex bg-white rounded-2xl p-1 shadow-md mb-6 overflow-x-auto no-scrollbar border border-gray-100 sticky top-4 z-40">
             <button onClick={() => setFilterUser('All')} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${filterUser === 'All' ? 'bg-bkash-pink text-white shadow-md' : 'text-gray-400'}`}>সবাই</button>
             {users.filter(u => u.role !== 'admin').map(user => (
               <button key={user.name} onClick={() => setFilterUser(user.name)} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${filterUser === user.name ? 'bg-bkash-pink text-white shadow-md' : 'text-gray-400'}`}>{user.name}</button>
@@ -207,7 +207,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white/90 backdrop-blur-xl py-4 px-8 flex justify-between items-center z-50 shadow-2xl rounded-[30px] border border-white/20">
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+20px)] left-1/2 -translate-x-1/2 w-[90%] max-w-sm bg-white/95 backdrop-blur-xl py-4 px-8 flex justify-between items-center z-50 shadow-2xl rounded-[30px] border border-white/20">
         <button onClick={() => { setShowSettings(false); setExpandedLoanId(null); }} className="flex flex-col items-center gap-1 transition-all active:scale-90">
           <svg className={`w-6 h-6 ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span className={`text-[10px] font-bold ${!showSettings ? 'text-bkash-pink' : 'text-gray-300'}`}>হোম</span>
