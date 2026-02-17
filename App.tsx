@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Loan, LoanStatus, UserAccount } from './types.ts';
-import Dashboard from './components/Dashboard.tsx';
-import LoanForm from './components/LoanForm.tsx';
-import LoanList from './components/LoanList.tsx';
-import Auth from './components/Auth.tsx';
-import Settings from './components/Settings.tsx';
+import { Loan, LoanStatus, UserAccount } from './types';
+import Dashboard from './components/Dashboard';
+import LoanForm from './components/LoanForm';
+import LoanList from './components/LoanList';
+import Auth from './components/Auth';
+import Settings from './components/Settings';
 
-const APP_VERSION = "v1.0.8";
+const APP_VERSION = "v1.0.9";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bkash-loan-v8'; 
+const CACHE_NAME = 'bkash-loan-v9'; 
 const ASSETS = [
   './',
   './index.html',

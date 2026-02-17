@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserAccount } from '../types.ts';
+import { UserAccount } from '../types';
 
 interface AuthProps {
   users: UserAccount[];
@@ -120,7 +120,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
         </div>
         <h2 className="text-2xl font-bold">{setupMode ? 'অ্যাডমিন সেটআপ' : 'লগইন করুন'}</h2>
         <p className="text-pink-100 text-[10px] mt-2 opacity-80 leading-relaxed">
-          আপনার অ্যাকাউন্টে প্রবেশ করতে সঠিক নাম এবং পিন দিন
+          আপনার অ্যাকাউন্টে প্রবেশ করতে সঠিক নাম এবং ৪ ডিজিট পিন দিন
         </p>
       </div>
 
