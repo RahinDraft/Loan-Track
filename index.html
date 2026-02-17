@@ -55,6 +55,9 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
                     .then(reg => {
+                        // Force a check for updates on every load
+                        reg.update();
+
                         reg.onupdatefound = () => {
                             const installingWorker = reg.installing;
                             installingWorker.onstatechange = () => {
