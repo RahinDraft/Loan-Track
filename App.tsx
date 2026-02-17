@@ -7,7 +7,7 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
-const APP_VERSION = "v1.0.5";
+const APP_VERSION = "v1.0.6";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
