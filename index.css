@@ -1,7 +1,10 @@
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-bkash-pink: #e2136e;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
 
 body {
   margin: 0;
@@ -16,4 +19,13 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(0.99); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
 }

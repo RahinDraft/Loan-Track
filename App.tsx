@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 import { Loan, LoanStatus, UserAccount } from './types';
 import Dashboard from './components/Dashboard';
 import LoanForm from './components/LoanForm';
@@ -7,7 +7,7 @@ import LoanList from './components/LoanList';
 import Auth from './components/Auth';
 import Settings from './components/Settings';
 
-const APP_VERSION = "v1.1.6";
+const APP_VERSION = "v1.1.7";
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://ivcuqbjctoeaqmtesobu.supabase.co';
@@ -28,15 +28,91 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   
   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null);
   const [highlightedInstId, setHighlightedInstId] = useState<string | null>(null);
+  const [activeAlerts, setActiveAlerts] = useState<string[]>([]);
+
+  // Request notification permission
+  useEffect(() => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Check for upcoming installments and show alerts
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || loans.length === 0) return;
+
+    const checkReminders = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const reminderDays = currentUser.reminderDays || 1;
+      const upcomingAlerts: string[] = [];
+
+      loans.forEach(loan => {
+        // Only check for the current user's loans unless admin
+        if (currentUser.role !== 'admin' && loan.userName.toLowerCase() !== currentUser.name.toLowerCase()) return;
+        if (loan.status !== LoanStatus.ACTIVE) return;
+
+        loan.installments.forEach(inst => {
+          if (inst.status === 'Paid') return;
+
+          const dueDate = new Date(inst.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = dueDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 0 && diffDays <= reminderDays) {
+            const message = `${loan.userName}-এর ${inst.amount} টাকার কিস্তি ${diffDays === 0 ? 'আজ' : diffDays + ' দিন পর'} জমা দিতে হবে।`;
+            upcomingAlerts.push(message);
+          }
+        });
+      });
+
+      if (upcomingAlerts.length > 0) {
+        setActiveAlerts(upcomingAlerts);
+        // Show system notification if permitted
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('বিকাশ লোন রিমাইন্ডার', {
+              body: upcomingAlerts[0] + (upcomingAlerts.length > 1 ? ` এবং আরও ${upcomingAlerts.length - 1}টি কিস্তি বাকি।` : ''),
+              icon: '/manifest.json'
+            });
+          } catch (e) {
+            console.error("Notification error:", e);
+          }
+        }
+      }
+    };
+
+    // Check once on load/auth
+    checkReminders();
+    
+    // Check every hour if app is open
+    const interval = setInterval(checkReminders, 3600000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentUser, loans]);
 
   const pullFromSupabase = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const { data: userData } = await supabase.from('users').select('*');
-      const { data: loanData } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
+      // Further reduced timeout for even faster response
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000); 
+
+      const { data: userData, error: userError } = await supabase.from('users').select('*');
+      const { data: loanData, error: loanError } = await supabase.from('loans').select('*').order('created_at', { ascending: false });
+
+      clearTimeout(timeoutId);
+
+      if (userError) throw userError;
+      if (loanError) throw loanError;
 
       if (userData) {
         setUsers(userData);
@@ -53,7 +129,7 @@ const App: React.FC = () => {
       }
       return true;
     } catch (error) {
-      console.error(error);
+      console.error("Supabase pull error:", error);
       return false;
     } finally {
       setIsSyncing(false);
@@ -62,21 +138,54 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      const savedLoans = localStorage.getItem(STORAGE_KEY);
-      const savedUsers = localStorage.getItem(USERS_KEY);
-      if (savedLoans) setLoans(JSON.parse(savedLoans));
-      if (savedUsers) setUsers(JSON.parse(savedUsers));
-      await pullFromSupabase();
-      setIsLoaded(true);
+      try {
+        const savedLoans = localStorage.getItem(STORAGE_KEY);
+        const savedUsers = localStorage.getItem(USERS_KEY);
+        
+        if (savedLoans) {
+          try {
+            setLoans(JSON.parse(savedLoans));
+          } catch (e) {
+            console.error("Failed to parse saved loans", e);
+          }
+        }
+        
+        if (savedUsers) {
+          try {
+            setUsers(JSON.parse(savedUsers));
+          } catch (e) {
+            console.error("Failed to parse saved users", e);
+          }
+        }
+
+        // Show app immediately if we have cached data
+        if (savedLoans || savedUsers) {
+          setIsLoaded(true);
+        }
+
+        // Pull from Supabase in background without blocking
+        pullFromSupabase().finally(() => {
+          setIsLoaded(true);
+        });
+
+      } catch (error) {
+        console.error("Initialization error:", error);
+        setInitError("অ্যাপ লোড করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।");
+      }
     };
     init();
-  }, [pullFromSupabase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
   const syncToSupabase = useCallback(async (currentLoans: Loan[], currentUsers: UserAccount[]) => {
     if (currentUser?.role !== 'admin') return;
     setIsSyncing(true);
     try {
-      const cleanLoans = currentLoans.map(({ created_at, ...l }: any) => l);
+      const cleanLoans = currentLoans.map((loan: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { created_at, ...l } = loan;
+        return l;
+      });
       await supabase.from('users').upsert(currentUsers, { onConflict: 'name' });
       await supabase.from('loans').upsert(cleanLoans, { onConflict: 'id' });
     } catch (error) { console.error(error); } finally { setIsSyncing(false); }
@@ -85,6 +194,15 @@ const App: React.FC = () => {
   const handleDataChange = (newLoans: Loan[], newUsers: UserAccount[]) => {
     setLoans(newLoans);
     setUsers(newUsers);
+    
+    // Update currentUser if it exists in the new users list
+    if (currentUser) {
+      const updatedCurrent = newUsers.find(u => u.name === currentUser.name);
+      if (updatedCurrent) {
+        setCurrentUser(updatedCurrent);
+      }
+    }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newLoans));
     localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
     if (currentUser?.role === 'admin') syncToSupabase(newLoans, newUsers);
@@ -138,6 +256,20 @@ const App: React.FC = () => {
 
   if (!isLoaded) return <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center p-6 text-white text-center">লোডিং...</div>;
 
+  if (initError) {
+    return (
+      <div className="min-h-screen bg-bkash-pink flex flex-col items-center justify-center p-6 text-white text-center">
+        <p className="mb-4">{initError}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="bg-white text-bkash-pink px-6 py-2 rounded-full font-bold shadow-lg"
+        >
+          আবার চেষ্টা করুন
+        </button>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <Auth 
@@ -174,6 +306,24 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 px-4 -mt-10 pb-[calc(env(safe-area-inset-bottom)+100px)] relative z-30 overflow-y-auto no-scrollbar">
+        {activeAlerts.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {activeAlerts.map((alert, idx) => (
+              <div key={idx} className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-2xl shadow-sm flex items-start gap-3 animate-pulse-subtle">
+                <div className="bg-orange-100 p-2 rounded-full text-orange-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-orange-800 leading-relaxed">{alert}</p>
+                </div>
+                <button onClick={() => setActiveAlerts(prev => prev.filter((_, i) => i !== idx))} className="text-orange-400 hover:text-orange-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isAdmin && (
           <div className="flex bg-white rounded-2xl p-1 shadow-md mb-6 overflow-x-auto no-scrollbar border border-gray-100 sticky top-4 z-40">
             <button onClick={() => setFilterUser('All')} className={`flex-1 px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all ${filterUser === 'All' ? 'bg-bkash-pink text-white shadow-md' : 'text-gray-400'}`}>সবাই</button>

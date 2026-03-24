@@ -10,6 +10,7 @@ export interface UserAccount {
   phone: string;
   pin: string;
   role: 'admin' | 'user';
+  reminderDays?: number; // Days before due date to show reminder
 }
 
 export interface CloudConfig {

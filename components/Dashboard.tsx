@@ -7,11 +7,10 @@ interface DashboardProps {
   loans: Loan[];
   users?: UserAccount[];
   isAdmin?: boolean;
-  onUserClick?: (name: string) => void;
   onInstallmentClick?: (loanId: string, installmentId: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, filterUser, loans, users = [], isAdmin = false, onUserClick, onInstallmentClick }) => {
+const Dashboard: React.FC<DashboardProps> = ({ stats, filterUser, loans, users = [], isAdmin = false, onInstallmentClick }) => {
   const formatCurrency = (amount: number) => {
     return `৳${amount.toLocaleString('bn-BD', {
       minimumFractionDigits: 0,

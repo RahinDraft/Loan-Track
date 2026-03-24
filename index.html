@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>বিকাশ লোন ট্র্যাকার প্রো</title>
     <link rel="manifest" href="manifest.json">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -54,33 +53,16 @@
             box-sizing: border-box;
         }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@19.2.4/",
-    "react": "https://esm.sh/react@19.2.4",
-    "react-dom": "https://esm.sh/react-dom@19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
-  }
-}
-</script>
 </head>
 <body>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-        const CURRENT_VERSION = '1.1.6';
+        const CURRENT_VERSION = '1.1.7';
         const savedVersion = localStorage.getItem('app_version');
-        
         if (savedVersion !== CURRENT_VERSION) {
             localStorage.setItem('app_version', CURRENT_VERSION);
-            if ('caches' in window) {
-                caches.keys().then(names => {
-                    for (let name of names) caches.delete(name);
-                });
-            }
-            setTimeout(() => window.location.reload(true), 500);
+            window.location.reload();
         }
     </script>
 </body>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserAccount } from '../types';
 
 interface AuthProps {
@@ -34,7 +34,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
     setPin(prev => prev.slice(0, -1));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     setError('');
     const cleanName = userName.trim();
     
@@ -73,7 +73,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       setError('ভুল পিন! আবার চেষ্টা করুন');
       setPin('');
     }
-  };
+  }, [userName, setupMode, onSetupAdmin, pin, adminName, users, onSuccess]);
 
   const handleCloudRestore = async () => {
     setIsRestoring(true);
@@ -85,7 +85,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       } else {
         setError('সার্ভারে কোনো ডাটা পাওয়া যায়নি।');
       }
-    } catch (e) {
+    } catch {
       setError('সার্ভার কানেকশন সমস্যা।');
     } finally {
       setIsRestoring(false);
@@ -97,7 +97,7 @@ const Auth: React.FC<AuthProps> = ({ users, isFirstRun, isSyncing, onSetupAdmin,
       const timer = setTimeout(() => handleSubmit(), 300);
       return () => clearTimeout(timer);
     }
-  }, [pin]);
+  }, [pin, handleSubmit]);
 
   const isLoadingUsers = isSyncing || isRestoring;
 

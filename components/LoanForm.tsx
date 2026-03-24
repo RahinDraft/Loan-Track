@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Loan, LoanStatus, Installment } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Loan, LoanStatus } from '../types';
 
 interface LoanFormProps {
   onClose: () => void;
@@ -21,57 +21,57 @@ const LoanForm: React.FC<LoanFormProps> = ({ onClose, onSubmit, existingUsers, e
     totalInstallments: editingLoan?.totalInstallments.toString() || '3'
   });
 
-  const [calc, setCalc] = useState({
-    principal: 0,
-    totalInterest: 0,
-    totalPayable: 0,
-    emi: 0,
-    installments: [] as any[]
-  });
-
-  useEffect(() => {
+  const calc = useMemo(() => {
     const P = Number(formData.principalAmount) || 0;
     const n = Number(formData.totalInstallments);
     const r = MONTHLY_RATE;
 
-    if (P > 0) {
-      const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    if (P <= 0) {
+      return {
+        principal: 0,
+        totalInterest: 0,
+        totalPayable: 0,
+        emi: 0,
+        installments: [] as any[]
+      };
+    }
+
+    const emi = (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+    
+    let remainingP = P;
+    let totalInt = 0;
+    const schedule = [];
+    const startDate = new Date(formData.startDate);
+
+    for (let i = 1; i <= n; i++) {
+      const interestForMonth = Math.round(remainingP * r * 100) / 100;
+      let principalForMonth = Math.round((emi - interestForMonth) * 100) / 100;
       
-      let remainingP = P;
-      let totalInt = 0;
-      const schedule = [];
-      const startDate = new Date(formData.startDate);
-
-      for (let i = 1; i <= n; i++) {
-        const interestForMonth = Math.round(remainingP * r * 100) / 100;
-        let principalForMonth = Math.round((emi - interestForMonth) * 100) / 100;
-        
-        if (i === n) {
-          principalForMonth = Math.round(remainingP * 100) / 100;
-        }
-
-        const installmentDate = new Date(startDate);
-        installmentDate.setMonth(startDate.getMonth() + i);
-
-        schedule.push({
-          date: installmentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-          principalPart: principalForMonth,
-          interestPart: interestForMonth,
-          amount: Math.round((principalForMonth + interestForMonth) * 100) / 100
-        });
-
-        totalInt += interestForMonth;
-        remainingP -= principalForMonth;
+      if (i === n) {
+        principalForMonth = Math.round(remainingP * 100) / 100;
       }
 
-      setCalc({
-        principal: P,
-        totalInterest: Math.round(totalInt * 100) / 100,
-        totalPayable: Math.round((P + totalInt) * 100) / 100,
-        emi: Math.round(emi * 100) / 100,
-        installments: schedule
+      const installmentDate = new Date(startDate);
+      installmentDate.setMonth(startDate.getMonth() + i);
+
+      schedule.push({
+        date: installmentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+        principalPart: principalForMonth,
+        interestPart: interestForMonth,
+        amount: Math.round((principalForMonth + interestForMonth) * 100) / 100
       });
+
+      totalInt += interestForMonth;
+      remainingP -= principalForMonth;
     }
+
+    return {
+      principal: P,
+      totalInterest: Math.round(totalInt * 100) / 100,
+      totalPayable: Math.round((P + totalInt) * 100) / 100,
+      emi: Math.round(emi * 100) / 100,
+      installments: schedule
+    };
   }, [formData.principalAmount, formData.totalInstallments, formData.startDate]);
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -81,6 +81,41 @@ const Settings: React.FC<SettingsProps> = ({ onClose, currentUser, users, setUse
             </div>
           </section>
 
+          {/* Reminder Settings Section */}
+          <section className="p-5 rounded-2xl bg-bkash-pink/5 border border-bkash-pink/10 space-y-3">
+            <div className="flex justify-between items-center">
+              <h4 className="font-bold text-xs text-bkash-pink uppercase tracking-wider flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                রিমাইন্ডার সেটিংস
+              </h4>
+              <span className="text-[10px] text-bkash-pink font-bold bg-bkash-pink/10 px-2 py-0.5 rounded-full">নতুন</span>
+            </div>
+            <p className="text-[11px] text-gray-600 leading-relaxed">
+              কিস্তি পরিশোধের কতদিন আগে আপনি নোটিফিকেশন পেতে চান?
+            </p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 5, 7].map(days => (
+                <button
+                  key={days}
+                  onClick={() => {
+                    if (!currentUser) return;
+                    const updatedUsers = users.map(u => 
+                      u.name === currentUser.name ? { ...u, reminderDays: days } : u
+                    );
+                    setUsers(updatedUsers);
+                  }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                    (currentUser?.reminderDays || 1) === days 
+                    ? 'bg-bkash-pink text-white shadow-md' 
+                    : 'bg-white text-gray-500 border border-gray-100 hover:border-bkash-pink/30'
+                  }`}
+                >
+                  {days} দিন
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="space-y-4">
             <h4 className="font-bold text-xs text-gray-500 uppercase tracking-wider">নতুন ইউজার (বন্ধু) যোগ করুন</h4>
             <div className="grid grid-cols-2 gap-2">
