@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bkash-loan-v9'; 
+const CACHE_NAME = 'bkash-loan-v10'; 
 const ASSETS = [
   './',
   './index.html',
@@ -28,12 +28,18 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.mode === 'navigate') {
+    // Network First strategy for the main page
     e.respondWith(
-      caches.match('./index.html').then((res) => {
-        return res || fetch(e.request);
-      })
+      fetch(e.request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone));
+          return res;
+        })
+        .catch(() => caches.match('./index.html'))
     );
   } else {
+    // Cache First for other assets
     e.respondWith(
       caches.match(e.request).then((res) => res || fetch(e.request))
     );

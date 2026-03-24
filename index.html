@@ -58,11 +58,22 @@
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
     <script>
-        const CURRENT_VERSION = '1.1.7';
+        const CURRENT_VERSION = '1.1.8'; // Incrementing version to force update
         const savedVersion = localStorage.getItem('app_version');
+        
         if (savedVersion !== CURRENT_VERSION) {
             localStorage.setItem('app_version', CURRENT_VERSION);
-            window.location.reload();
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) registration.unregister();
+                });
+            }
+            setTimeout(() => window.location.reload(true), 500);
         }
     </script>
 </body>
